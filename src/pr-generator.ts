@@ -1,6 +1,7 @@
 import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { GitChanges, GenerateOptions } from "./types.js";
+import { getDefaultModel } from "./models.js";
 
 export async function generatePRDescription(
   changes: GitChanges,
@@ -20,27 +21,35 @@ export async function generatePRDescription(
 }
 
 function getAIModel(provider: string, modelName?: string) {
+  const defaultModel = getDefaultModel(provider);
+
   switch (provider) {
     case "groq":
+      if (!process.env.GROQ_API_KEY) {
+        throw new Error("GROQ_API_KEY environment variable is required");
+      }
       const groq = createOpenAI({
         baseURL: "https://api.groq.com/openai/v1",
         apiKey: process.env.GROQ_API_KEY,
       });
-      return groq(modelName || "llama-3.1-70b-versatile");
+      return groq(modelName || defaultModel);
 
     case "deepinfra":
+      if (!process.env.DEEPINFRA_API_KEY) {
+        throw new Error("DEEPINFRA_API_KEY environment variable is required");
+      }
       const deepinfra = createOpenAI({
         baseURL: "https://api.deepinfra.com/v1/openai",
         apiKey: process.env.DEEPINFRA_API_KEY,
       });
-      return deepinfra(modelName || "meta-llama/Meta-Llama-3.1-70B-Instruct");
+      return deepinfra(modelName || defaultModel);
 
     case "local":
       const ollama = createOpenAI({
         baseURL: "http://localhost:11434/v1",
-        apiKey: "ollama", // Ollama doesn't need a real API key
+        apiKey: "ollama",
       });
-      return ollama(modelName || "llama3.1");
+      return ollama(modelName || defaultModel);
 
     default:
       throw new Error(`Unsupported provider: ${provider}`);

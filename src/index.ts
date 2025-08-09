@@ -6,6 +6,7 @@ import ora from "ora";
 import { generatePRDescription } from "./pr-generator.js";
 import { getGitChanges } from "./git-utils.js";
 import { config } from "dotenv";
+import { getSupportedModels, SUPPORTED_MODELS } from "./models.js";
 
 config();
 
@@ -95,6 +96,53 @@ program
     console.log("Create a .env file or set environment variables:");
     console.log(chalk.green("GROQ_API_KEY=your_groq_key"));
     console.log(chalk.green("DEEPINFRA_API_KEY=your_deepinfra_key"));
+  });
+
+program
+  .command("models")
+  .description("List available models for each provider")
+  .option("-p, --provider <provider>", "Show models for specific provider")
+  .action((options) => {
+    if (options.provider) {
+      try {
+        const models = getSupportedModels(options.provider);
+        console.log(
+          chalk.bold.cyan(`Available models for ${options.provider}:`)
+        );
+        models.forEach((model) => {
+          const isDefault =
+            model ===
+            SUPPORTED_MODELS[options.provider as keyof typeof SUPPORTED_MODELS]
+              .default;
+          console.log(
+            `  ${isDefault ? "✓" : " "} ${model}${
+              isDefault ? " (default)" : ""
+            }`
+          );
+        });
+      } catch (error) {
+        console.error(
+          chalk.red(
+            `Error: ${error instanceof Error ? error.message : "Unknown error"}`
+          )
+        );
+      }
+    } else {
+      console.log(
+        chalk.bold.cyan("Available providers and their default models:\n")
+      );
+      Object.entries(SUPPORTED_MODELS).forEach(([provider, config]) => {
+        console.log(chalk.bold(`${provider}:`));
+        console.log(`  Default: ${config.default}`);
+        console.log(`  Options: ${config.options.length} models available`);
+        console.log();
+      });
+      console.log(
+        chalk.yellow(
+          "Use 'pr-desc models -p <provider>' to see all models for a provider"
+        )
+      );
+    }
   });
 
 program.parse();
