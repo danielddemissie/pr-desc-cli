@@ -3,16 +3,12 @@ export interface GitChanges {
   currentBranch: string;
   files: FileChange[];
   commits: CommitInfo[];
-  stats: {
-    insertions: number;
-    deletions: number;
-    filesChanged: number;
-  };
+  stats: GitStats;
 }
 
 export interface FileChange {
   path: string;
-  status: string;
+  status: FileStatus;
   additions: number;
   deletions: number;
   patch: string | null;
@@ -25,8 +21,29 @@ export interface CommitInfo {
   date: string;
 }
 
+export interface GitStats {
+  insertions: number;
+  deletions: number;
+  filesChanged: number;
+}
+
+export type FileStatus =
+  | "added"
+  | "deleted"
+  | "modified"
+  | "renamed"
+  | "binary"
+  | "unknown";
+
 export interface GenerateOptions {
   provider: string;
   model?: string;
   template: string;
+}
+
+// Simple-git types for better type safety
+export interface SimpleGitFile {
+  file: string;
+  changes: number;
+  binary?: boolean;
 }

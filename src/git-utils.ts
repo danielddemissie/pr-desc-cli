@@ -1,5 +1,10 @@
 import simpleGit from "simple-git";
-import type { GitChanges, FileChange, CommitInfo } from "./types.ts";
+import type {
+  GitChanges,
+  FileChange,
+  CommitInfo,
+  FileStatus,
+} from "./types.ts";
 
 const git = simpleGit();
 
@@ -8,10 +13,13 @@ export async function getGitChanges(
   maxFiles: number
 ): Promise<GitChanges> {
   try {
-    // Get current branch
-    const currentBranch = await git.revparse(["--abbrev-ref", "HEAD"]);
+    // Make sure base branch info is up to date
+    await git.fetch();
 
-    // Get diff stats
+    // Get current branch name
+    const currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
+
+    // Get high-level diff summary
     const diffSummary = await git.diffSummary([`${baseBranch}...HEAD`]);
 
     // Get recent commits
@@ -21,33 +29,47 @@ export async function getGitChanges(
       maxCount: 10,
     });
 
-    // Get detailed file changes
-    const files: FileChange[] = [];
+    // Parse per-file additions/deletions with --numstat
+    const numstatOutput = await git.raw([
+      "diff",
+      `${baseBranch}...HEAD`,
+      "--numstat",
+    ]);
+    const numstatMap: Record<string, { additions: number; deletions: number }> =
+      {};
+    numstatOutput.split("\n").forEach((line) => {
+      if (!line.trim()) return;
+      const [add, del, path] = line.split("\t");
+      numstatMap[path] = {
+        additions: add === "-" ? 0 : parseInt(add, 10),
+        deletions: del === "-" ? 0 : parseInt(del, 10),
+      };
+    });
+
+    // Build file list
     const diffFiles = diffSummary.files.slice(0, maxFiles);
+    const files: FileChange[] = [];
 
     for (const file of diffFiles) {
-      try {
-        const patch = await git.show([`${baseBranch}...HEAD`, "--", file.file]);
+      const stats = numstatMap[file.file] || { additions: 0, deletions: 0 };
 
-        files.push({
-          path: file.file,
-          status: getFileStatus(file),
-          additions: file.insertions,
-          deletions: file.deletions,
-          patch: patch,
-        });
-      } catch (error) {
-        // If we can't get the patch, still include the file
-        files.push({
-          path: file.file,
-          status: getFileStatus(file),
-          additions: file.insertions,
-          deletions: file.deletions,
-          patch: null,
-        });
+      let patch: string | null = null;
+      try {
+        patch = await git.diff([`${baseBranch}...HEAD`, "--", file.file]);
+      } catch {
+        patch = null;
       }
+
+      files.push({
+        path: file.file,
+        status: getFileStatus(stats),
+        additions: stats.additions,
+        deletions: stats.deletions,
+        patch,
+      });
     }
 
+    // Prepare commit list
     const commits: CommitInfo[] = log.all.map((commit) => ({
       hash: commit.hash,
       message: commit.message,
@@ -55,9 +77,10 @@ export async function getGitChanges(
       date: commit.date,
     }));
 
+    // Return final result
     return {
       baseBranch,
-      currentBranch: currentBranch.trim(),
+      currentBranch,
       files,
       commits,
       stats: {
@@ -75,9 +98,12 @@ export async function getGitChanges(
   }
 }
 
-function getFileStatus(file: any): string {
-  if (file.insertions > 0 && file.deletions === 0) return "added";
-  if (file.insertions === 0 && file.deletions > 0) return "deleted";
-  if (file.insertions > 0 && file.deletions > 0) return "modified";
+function getFileStatus(file: {
+  additions: number;
+  deletions: number;
+}): FileStatus {
+  if (file.additions > 0 && file.deletions === 0) return "added";
+  if (file.additions === 0 && file.deletions > 0) return "deleted";
+  if (file.additions > 0 && file.deletions > 0) return "modified";
   return "unknown";
 }

@@ -3,7 +3,7 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import ora from "ora";
-import { generatePRDescription } from "./pr-generator";
+import { generatePRDescription } from "./pr-generator.js";
 import { getGitChanges } from "./git-utils.js";
 import { config } from "dotenv";
 
