@@ -47,3 +47,5 @@ export interface SimpleGitFile {
   changes: number;
   binary?: boolean;
 }
+
+// normal change
