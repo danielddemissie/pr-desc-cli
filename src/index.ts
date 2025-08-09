@@ -7,6 +7,7 @@ import { generatePRDescription } from "./pr-generator.js";
 import { getGitChanges } from "./git-utils.js";
 import { config } from "dotenv";
 import { getSupportedModels, SUPPORTED_MODELS } from "./models.js";
+import { loadConfig, setApiKey, getApiKey } from "./config.js";
 
 config();
 
@@ -142,6 +143,51 @@ program
           "Use 'pr-desc models -p <provider>' to see all models for a provider"
         )
       );
+    }
+  });
+
+program
+  .command("config")
+  .description("Manage configuration and API keys")
+  .argument("<action>", "Action to perform (set, get, show)")
+  .argument("[provider]", "Provider name (groq, deepinfra)")
+  .argument("[value]", "API key value (for set action)")
+  .action((action, provider, value) => {
+    switch (action) {
+      case "set":
+        if (!provider || !value) {
+          console.error(
+            chalk.red("Usage: pr-desc config set <provider> <api-key>")
+          );
+          process.exit(1);
+        }
+        setApiKey(provider, value);
+        break;
+
+      case "get":
+        if (!provider) {
+          console.error(chalk.red("Usage: pr-desc config get <provider>"));
+          process.exit(1);
+        }
+        const apiKey = getApiKey(provider);
+        if (apiKey) {
+          console.log(
+            `${provider}: ${apiKey.slice(0, 8)}...${apiKey.slice(-4)}`
+          );
+        } else {
+          console.log(`${provider}: Not set`);
+        }
+        break;
+
+      case "show":
+        const config = loadConfig();
+        console.log(chalk.bold.cyan("Current Configuration:"));
+        console.log(JSON.stringify(config, null, 2));
+        break;
+
+      default:
+        console.error(chalk.red("Unknown action. Use: set, get, or show"));
+        process.exit(1);
     }
   });
 

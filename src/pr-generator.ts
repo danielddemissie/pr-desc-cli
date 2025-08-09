@@ -2,6 +2,7 @@ import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { GitChanges, GenerateOptions } from "./types.js";
 import { getDefaultModel } from "./models.js";
+import { getApiKey } from "./config.js";
 
 export async function generatePRDescription(
   changes: GitChanges,
@@ -25,22 +26,28 @@ function getAIModel(provider: string, modelName?: string) {
 
   switch (provider) {
     case "groq":
-      if (!process.env.GROQ_API_KEY) {
-        throw new Error("GROQ_API_KEY environment variable is required");
+      const groqApiKey = getApiKey("groq");
+      if (!groqApiKey) {
+        throw new Error(
+          "GROQ_API_KEY not found. Set it globally with 'export GROQ_API_KEY=your_key' or use 'pr-desc config set groq your_key'"
+        );
       }
       const groq = createOpenAI({
         baseURL: "https://api.groq.com/openai/v1",
-        apiKey: process.env.GROQ_API_KEY,
+        apiKey: groqApiKey,
       });
       return groq(modelName || defaultModel);
 
     case "deepinfra":
-      if (!process.env.DEEPINFRA_API_KEY) {
-        throw new Error("DEEPINFRA_API_KEY environment variable is required");
+      const deepinfraApiKey = getApiKey("deepinfra");
+      if (!deepinfraApiKey) {
+        throw new Error(
+          "DEEPINFRA_API_KEY not found. Set it globally with 'export DEEPINFRA_API_KEY=your_key' or use 'pr-desc config set deepinfra your_key'"
+        );
       }
       const deepinfra = createOpenAI({
         baseURL: "https://api.deepinfra.com/v1/openai",
-        apiKey: process.env.DEEPINFRA_API_KEY,
+        apiKey: deepinfraApiKey,
       });
       return deepinfra(modelName || defaultModel);
 
