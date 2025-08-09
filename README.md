@@ -150,3 +150,7 @@ npm run build
 # Run
 
 npm run start
+
+# Link
+
+npm run link
