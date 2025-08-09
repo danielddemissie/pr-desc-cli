@@ -146,3 +146,7 @@ npm run dev generate
 # Build
 
 npm run build
+
+# Run
+
+npm run start
