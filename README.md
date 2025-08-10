@@ -74,7 +74,7 @@ For a good balance of performance and resource usage, we recommend `llama3.1` (t
 
 1.  **Install Ollama**:
 
-    - Download the macOS application from [https://ollama.ai/download](https://ollama.ai/download).
+    - Download the macOS application from [https://ollama.ai/download](https://ollama.ai/).
     - Install it by dragging the app to your Applications folder.
     - Launch Ollama; it will run in the background.
 
