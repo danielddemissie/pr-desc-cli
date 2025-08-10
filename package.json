@@ -1,6 +1,6 @@
 {
   "name": "pr-desc-cli",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "AI-powered PR description generator",
   "author": "Daniel Demelash <danielddemissie@gmail.com>",
   "main": "dist/index.js",
@@ -9,10 +9,13 @@
     "pr-desc": "dist/index.js"
   },
   "scripts": {
-    "dev": "tsx src/index.ts",
-    "build": "tsc",
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc",
     "start": "node dist/index.js",
-    "lint": "next lint"
+    "prepublishOnly": "npm run build",
+    "release:patch": "npm version patch && npm publish",
+    "release:minor": "npm version minor && npm publish",
+    "release:major": "npm version major && npm publish"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.0.0",
@@ -28,5 +31,30 @@
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   },
-  "license": "MIT"
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "cli",
+    "ai",
+    "pull-request",
+    "pr-description",
+    "git",
+    "typescript",
+    "automation",
+    "groq",
+    "deepinfra",
+    "ollama"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danielddemissie/pr-desc-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/danielddemissie/pr-desc-cli/issues"
+  },
+  "homepage": "https://github.com/danielddemissie/pr-desc-cli#readme"
 }
