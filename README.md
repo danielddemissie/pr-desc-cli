@@ -28,8 +28,6 @@ Before using `pr-desc` to generate descriptions, you need to configure your AI p
 
 This method stores your API key securely in a global configuration file (`~/.pr-desc/config.json`), making it accessible from any directory.
 
-\`\`\`bash
-
 # For Groq (recommended for speed):
 
 pr-desc config set groq your_groq_api_key_here
