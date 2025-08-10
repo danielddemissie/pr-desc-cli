@@ -13,23 +13,15 @@ export async function getGitChanges(
   maxFiles: number
 ): Promise<GitChanges> {
   try {
-    // Make sure base branch info is up to date
     await git.fetch();
-
-    // Get current branch name
     const currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
-
-    // Get high-level diff summary
     const diffSummary = await git.diffSummary([`${baseBranch}...HEAD`]);
-
-    // Get recent commits
     const log = await git.log({
       from: baseBranch,
       to: "HEAD",
       maxCount: 10,
     });
 
-    // Parse per-file additions/deletions with --numstat
     const numstatOutput = await git.raw([
       "diff",
       `${baseBranch}...HEAD`,
@@ -46,7 +38,6 @@ export async function getGitChanges(
       };
     });
 
-    // Build file list
     const diffFiles = diffSummary.files.slice(0, maxFiles);
     const files: FileChange[] = [];
 
@@ -69,7 +60,6 @@ export async function getGitChanges(
       });
     }
 
-    // Prepare commit list
     const commits: CommitInfo[] = log.all.map((commit) => ({
       hash: commit.hash,
       message: commit.message,
@@ -77,7 +67,6 @@ export async function getGitChanges(
       date: commit.date,
     }));
 
-    // Return final result
     return {
       baseBranch,
       currentBranch,

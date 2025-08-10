@@ -1,4 +1,3 @@
-// Current supported models for each provider
 export const SUPPORTED_MODELS = {
   groq: {
     default: "llama-3.3-70b-versatile",

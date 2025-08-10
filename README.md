@@ -17,8 +17,8 @@ An AI-powered CLI tool that generates Pull Request descriptions from your git ch
 ### Clone the repository
 
 ```bash
-git clone https://github.com/danielddemissie/pr-description-cli.git # Replace with your repo URL
-cd pr-description-cli
+git clone https://github.com/danielddemissie/pr-desc-cli.git # Replace with your repo URL
+cd pr-desc-cli
 ```
 
 ### Install dependencies

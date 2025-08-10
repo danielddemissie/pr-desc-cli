@@ -18,12 +18,11 @@ export interface Config {
 }
 
 export function loadConfig(): Config {
-  // First, try to load from global config directory
+  // global config
   if (existsSync(ENV_FILE)) {
     config({ path: ENV_FILE });
   }
 
-  // Also try local .env file
   config();
 
   let userConfig: Config = {};
@@ -51,7 +50,6 @@ export function saveConfig(config: Config): void {
 export function getApiKey(provider: string): string | undefined {
   const config = loadConfig();
 
-  // Check environment variables first
   switch (provider) {
     case "groq":
       return process.env.GROQ_API_KEY || config.apiKeys?.groq;

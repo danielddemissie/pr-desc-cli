@@ -39,7 +39,6 @@ program
     const spinner = ora("Analyzing git changes...").start();
 
     try {
-      // Get git changes
       const changes = await getGitChanges(
         options.base,
         Number.parseInt(options.maxFiles)
@@ -52,7 +51,7 @@ program
 
       spinner.text = "Generating PR description with AI...";
 
-      // Generate PR description
+      // PR description
       const description = await generatePRDescription(changes, {
         provider: options.provider,
         model: options.model,
