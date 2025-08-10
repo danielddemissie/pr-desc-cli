@@ -95,6 +95,35 @@ pr-desc gen --template detailed
 pr-desc gen --max-files 15
 ```
 
+### Seamless Integration with GitHub CLI (`gh`)
+
+You can seamlessly integrate `pr-desc` with the [GitHub CLI](https://cli.github.com/) to automatically create pull requests with the AI-generated description, **without creating any temporary files to store pr-desc output**.
+
+**Prerequisites:**
+
+1.  **Install GitHub CLI (`gh`)**: Follow the installation instructions on the [official GitHub CLI documentation](https://cli.github.com/).
+2.  **Authenticate `gh`**: Run `gh auth login` and follow the prompts to authenticate with your GitHub account.
+
+**How to use:**
+
+Pipe the output of `pr-desc` directly into `gh pr create`. We'll use `grep -v` to filter out the decorative lines from `pr-desc`'s output, ensuring only the clean Markdown description is passed.
+
+```bash
+pr-desc generate | grep -v '═' | grep -v '🚀' | gh pr create --fill --body-file -
+```
+
+- `pr-desc generate`: Generates the PR description.
+- `| grep -v '═' | grep -v '🚀'`: Pipes the output and filters out lines containing '═' (the separator) and '🚀' (the success message icon).
+- `| gh pr create`: Pipes the filtered description to the `gh pr create` command.
+- `--fill`: This option tells `gh` to automatically fill in the PR title and body from the current branch's commits. The piped content from `pr-desc` will then override the body.
+- `--body-file -`: This crucial part tells `gh pr create` to read the PR body content from standard input (the pipe), instead of a file.
+
+This single command will:
+
+1.  Generate your PR description using AI.
+2.  Clean up the output.
+3.  Create a new pull request on GitHub, automatically filling its title and using the AI-generated content as its body.
+
 ### List Available Models
 
 Discover which AI models are supported by each provider:

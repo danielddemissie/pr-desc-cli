@@ -15,7 +15,8 @@
     "prepublishOnly": "npm run build",
     "release:patch": "npm version patch && npm publish",
     "release:minor": "npm version minor && npm publish",
-    "release:major": "npm version major && npm publish"
+    "release:major": "npm version major && npm publish",
+    "postversion": "git push && git push --tags && gh release create $(git describe --tags --abbrev=0) --generate-notes"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.0.0",
