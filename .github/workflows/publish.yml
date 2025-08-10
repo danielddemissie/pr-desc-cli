@@ -1,9 +1,8 @@
 name: Publish to npm
 
 on:
-  push:
-    branches:
-      - main
+  release:
+    types: [published]
 
 jobs:
   publish:
@@ -12,6 +11,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -26,6 +27,6 @@ jobs:
         run: npm run build
 
       - name: Publish to npm
-        run: npm run publish # Publish the package
+        run: npm publish # Publish the package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
