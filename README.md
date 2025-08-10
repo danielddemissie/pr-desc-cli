@@ -257,8 +257,8 @@ This provides a powerful way to standardize your team's PRs while still leveragi
 
 The CLI supports the following free and open-source AI providers. You can specify a model using the `-m` or `--model` option.
 
-| Provider  | Default Model                       | Other Options                                                                                             |
-| --------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Groq      | `llama-3.3-70b-versatile`           | `llama-3.1-8b-instant`, `mixtral-8x7b-32768`, `gemma2-9b-it`                                              |
-| DeepInfra | `meta-llama/Llama-3.3-70B-Instruct` | `meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo`, `deepseek-ai/DeepSeek-V3`, `deepseek-ai/DeepSeek-R1-Turbo` |
-| Local     | `llama3.3`                          | `llama3.1`, `codellama`, `deepseek-r1`                                                                    |
+| Provider  | Default Model                                 | Other Options                                                                                   |
+| --------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Groq      | `llama-3.1-8b-instant`                        | `llama-3.3-70b-versatile`, `mixtral-8x7b-32768`, `gemma2-9b-it`                                 |
+| DeepInfra | `meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo` | `meta-llama/Llama-3.3-70B-Instruct`, `deepseek-ai/DeepSeek-V3`, `deepseek-ai/DeepSeek-R1-Turbo` |
+| Local     | `llama3.1`                                    | `llama3.3`, `codellama`, `deepseek-r1`                                                          |
