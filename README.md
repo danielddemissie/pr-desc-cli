@@ -10,7 +10,7 @@ An intelligent command-line interface (CLI) tool designed to streamline your dev
 - 🔑 **Seamless Configuration**: Store API keys and default settings globally, allowing `pr-desc` to be used effortlessly from any project directory.
 - 📋 **Model Transparency**: Easily list and select from a range of supported AI models for each provider.
 - 🔧 **Robust & Reliable**: Built with TypeScript for enhanced type safety and maintainability.
-- ✍️ **Custom Template Files (Incoming)**: Soon, you'll be able to provide your own Markdown file as a template for more tailored PR descriptions.
+- ✍️ **Custom Template Files**: Provide your own Markdown file as a template for highly tailored PR descriptions.
 
 ## Installation
 
@@ -63,6 +63,40 @@ mkdir -p ~/.pr-desc
 echo "GROQ_API_KEY=your_groq_api_key_here" > ~/.pr-desc/.env
 ```
 
+### Option 4: Use Local Models with Ollama (Offline Generation)
+
+For completely offline PR description generation, you can use local AI models via [Ollama](https://ollama.ai/).
+
+**Recommended Local Model:**
+For a good balance of performance and resource usage, we recommend `llama3.1` (the 8B version). It's highly capable for instruction-following and general text generation, making it ideal for PR descriptions.
+
+**Setup Steps for macOS:**
+
+1.  **Install Ollama**:
+
+    - Download the macOS application from [https://ollama.ai/download](https://ollama.ai/download).
+    - Install it by dragging the app to your Applications folder.
+    - Launch Ollama; it will run in the background.
+
+2.  **Pull the `llama3.1` Model**:
+    Open your Terminal and run:
+
+    ```bash
+    ollama pull llama3.1
+    ```
+
+    This will download the model weights (approx. 4.7 GB).
+
+3.  **Verify Installation**:
+    You can list installed models with `ollama list`.
+
+4.  **Use `pr-desc` with the Local Model**:
+    Once `llama3.1` is pulled, specify the `local` provider and `llama3.1` model:
+    ```bash
+    pr-desc generate --provider local --model llama3.1
+    ```
+    This will use your local `llama3.1` model for generation.
+
 ## Usage
 
 Navigate to any of your local Git repositories with unmerged changes to generate a PR description.
@@ -89,6 +123,14 @@ pr-desc gen -m "llama-3.1-8b-instant"
 # Apply a predefined PR template style
 
 pr-desc gen --template detailed
+
+# Use a custom Markdown template file
+
+# The AI will fill this template based on the git changes.
+
+# See 'Custom Template Files' section below for details.
+
+pr-desc gen --template-file ./my-pr-template.md
 
 # Limit the number of files analyzed to prevent excessive token usage (default is 20)
 
@@ -168,6 +210,49 @@ pr-desc config show
 - `detailed` - A comprehensive description with dedicated sections for Summary, Changes Made, Technical Details, Testing instructions, Breaking Changes, and Additional Notes.
 - `minimal` - A concise, one-line summary followed by brief bullet points of key changes and any applicable breaking changes.
 
+## Custom Template Files
+
+You can now provide your own Markdown file as a template for generating PR descriptions using the `--template-file <path>` option. This allows for ultimate customization, enabling teams to enforce specific PR formats, include mandatory sections, or embed project-specific guidelines directly into the generated description.
+
+When you use a custom template, `pr-desc` will provide the AI model with all the relevant Git changes data and your template. The AI will then be instructed to fill out your template based on the provided data.
+
+**Example `my-pr-template.md`:**
+
+```markdown
+# Pull Request: {{TITLE}}
+
+## Summary of Changes
+
+AI will fill this section with a high-level summary of the changes
+
+## What was changed?
+
+AI will detail the specific modifications made
+
+## Why was this change made?
+
+AI will explain the rationale and problem solved
+
+## Technical Details
+
+AI can elaborate on implementation specifics here
+
+## How to Test
+
+1.  Checkout this branch.
+2.  Run \`npm install\` and \`npm run dev\`.
+3.  Navigate to [relevant URL/feature].
+4.  Verify [specific test steps].
+
+## Breaking Changes (if any)
+
+AI will list any breaking changes or write "None"
+```
+
+The AI will analyze the git changes and attempt to fill the sections of your custom template. You can guide the AI by adding comments like `AI will fill this section` within your template.
+
+This provides a powerful way to standardize your team's PRs while still leveraging AI for content generation.
+
 ## Available Providers & Models
 
 The CLI supports the following free and open-source AI providers. You can specify a model using the `-m` or `--model` option.
@@ -177,15 +262,3 @@ The CLI supports the following free and open-source AI providers. You can specif
 | Groq      | `llama-3.3-70b-versatile`           | `llama-3.1-8b-instant`, `mixtral-8x7b-32768`, `gemma2-9b-it`                                              |
 | DeepInfra | `meta-llama/Llama-3.3-70B-Instruct` | `meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo`, `deepseek-ai/DeepSeek-V3`, `deepseek-ai/DeepSeek-R1-Turbo` |
 | Local     | `llama3.3`                          | `llama3.1`, `codellama`, `deepseek-r1`                                                                    |
-
-## New Features Incoming!
-
-We're constantly working to enhance `pr-desc`. Here's a highly anticipated feature currently in development:
-
-### Custom Template File
-
-**Feature:** You will soon be able to provide your own Markdown file as a template for generating PR descriptions. This will allow for ultimate customization, enabling teams to enforce specific PR formats, include mandatory sections (e.g., JIRA ticket numbers, test plans), or embed project-specific guidelines directly into the generated description.
-
-**How it will work:** A new command-line option, likely `--template-file <path/to/your/template.md>`, will be introduced. `pr-desc` will read this file, inject the AI-generated content into placeholders within your custom template, and output the final, tailored PR description. This provides a "better way" than just `--template` by giving you full control over the structure and static content of your PRs.
-
-Stay tuned for updates!

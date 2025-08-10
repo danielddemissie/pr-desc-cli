@@ -1,6 +1,6 @@
 export const SUPPORTED_MODELS = {
   groq: {
-    default: "llama-3.3-70b-versatile",
+    default: "llama-3.1-8b-instant",
     options: [
       "llama-3.3-70b-versatile",
       "llama-3.1-8b-instant",
@@ -9,7 +9,7 @@ export const SUPPORTED_MODELS = {
     ],
   },
   deepinfra: {
-    default: "meta-llama/Llama-3.3-70B-Instruct",
+    default: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
     options: [
       "meta-llama/Llama-3.3-70B-Instruct",
       "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
@@ -18,7 +18,7 @@ export const SUPPORTED_MODELS = {
     ],
   },
   local: {
-    default: "llama3.3",
+    default: "llama3.1",
     options: ["llama3.3", "llama3.1", "codellama", "deepseek-r1"],
   },
 } as const;

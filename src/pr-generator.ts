@@ -9,7 +9,11 @@ export async function generatePRDescription(
   options: GenerateOptions
 ): Promise<string> {
   const model = getAIModel(options.provider, options.model);
-  const prompt = buildPrompt(changes, options.template);
+  const prompt = buildPrompt(
+    changes,
+    options.template,
+    options.customTemplateContent
+  );
 
   const { text } = await generateText({
     model,
@@ -63,28 +67,31 @@ function getAIModel(provider: string, modelName?: string) {
   }
 }
 
-function buildPrompt(changes: GitChanges, template: string): string {
-  const basePrompt = `
-You are an expert software engineer writing a Pull Request description. 
-Analyze the following git changes and create a comprehensive PR description.
-
-## Git Changes Summary:
+function buildPrompt(
+  changes: GitChanges,
+  template: string,
+  customTemplateContent?: string
+): string {
+  const gitDataSection = `
+## Git Changes Data for Analysis:
+- Base Branch: ${changes.baseBranch}
+- Current Branch: ${changes.currentBranch}
 - Files changed: ${changes.files.length}
 - Insertions: ${changes.stats.insertions}
 - Deletions: ${changes.stats.deletions}
-- Commits: ${changes.commits.length}
 
-## Recent Commits:
-${changes.commits.map((commit) => `- ${commit.message}`).join("\n")}
+### Recent Commits:
+${changes.commits
+  .map((commit) => `- ${commit.message} (${commit.hash.slice(0, 7)})`)
+  .join("\n")}
 
-## File Changes:
+### Detailed File Changes:
 ${changes.files
   .map(
     (file) => `
-**${file.path}** (${file.status})
-${file.additions > 0 ? `+${file.additions}` : ""} ${
-      file.deletions > 0 ? `-${file.deletions}` : ""
-    }
+**${file.path}** (Status: ${file.status}, +${file.additions}, -${
+      file.deletions
+    })
 ${
   file.patch
     ? `\`\`\`diff\n${file.patch.slice(0, 500)}${
@@ -97,8 +104,27 @@ ${
   .join("\n")}
 `;
 
+  if (customTemplateContent) {
+    return `
+You are an expert software engineer writing a Pull Request description.
+Analyze the following git changes and generate a PR description that strictly adheres to the provided custom Markdown template.
+Fill in the sections of the template using the git changes data.
+
+${gitDataSection}
+
+---
+
+## Custom PR Template:
+${customTemplateContent}
+
+---
+
+Please generate the PR description by filling the custom template based on the git changes provided.
+`;
+  }
+
   const templates = {
-    standard: `${basePrompt}
+    standard: `${gitDataSection}
 
 Create a PR description with:
 1. A clear, concise title
@@ -108,7 +134,7 @@ Create a PR description with:
 
 Format as markdown.`,
 
-    detailed: `${basePrompt}
+    detailed: `${gitDataSection}
 
 Create a detailed PR description with:
 1. ## Summary - Brief overview
@@ -120,7 +146,7 @@ Create a detailed PR description with:
 
 Format as markdown with proper sections.`,
 
-    minimal: `${basePrompt}
+    minimal: `${gitDataSection}
 
 Create a minimal PR description with:
 - One line summary of what was changed

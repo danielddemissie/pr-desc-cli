@@ -39,6 +39,7 @@ export interface GenerateOptions {
   provider: string;
   model?: string;
   template: string;
+  customTemplateContent?: string;
 }
 
 export interface SimpleGitFile {
