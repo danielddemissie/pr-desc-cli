@@ -4,6 +4,7 @@
   "description": "AI-powered PR description generator",
   "author": "Daniel Demelash <danielddemissie@gmail.com>",
   "main": "dist/index.js",
+  "type": "module",
   "bin": {
     "pr-desc": "dist/index.js"
   },
