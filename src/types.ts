@@ -41,11 +41,8 @@ export interface GenerateOptions {
   template: string;
 }
 
-// Simple-git types for better type safety
 export interface SimpleGitFile {
   file: string;
   changes: number;
   binary?: boolean;
 }
-
-// normal change

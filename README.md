@@ -14,25 +14,30 @@ An AI-powered CLI tool that generates Pull Request descriptions from your git ch
 
 ## Installation
 
-\`\`\`bash
+### Clone the repository
 
-# Clone the repository
-
-git clone https://github.com/your-username/pr-description-cli.git # Replace with your repo URL
+```bash
+git clone https://github.com/danielddemissie/pr-description-cli.git # Replace with your repo URL
 cd pr-description-cli
+```
 
-# Install dependencies
+### Install dependencies
 
+```bash
 npm install
+```
 
-# Build the TypeScript code
+### Build the TypeScript code
 
+```bash
 npm run build
+```
 
-# Link the CLI tool globally (recommended for easy access)
+### Link the CLI tool globally (recommended for easy access)
 
+```bash
 npm link
-\`\`\`
+```
 
 ## Setup
 
@@ -42,49 +47,46 @@ Before using `pr-desc`, you need to set up your API keys. You have a few options
 
 This will store your API key in a global configuration file (`~/.pr-desc/config.json`).
 
-\`\`\`bash
-
-# For Groq:
+**For Groq:**
 
 pr-desc config set groq your_groq_api_key_here
 
-# For DeepInfra:
+**For DeepInfra:**
 
 pr-desc config set deepinfra your_deepinfra_api_key_here
-\`\`\`
 
 You can verify your configuration:
-\`\`\`bash
+
+```bash
 pr-desc config show
 pr-desc config get groq
-\`\`\`
+```
 
 ### Option 2: Set Environment Variables Globally
 
 Add the API key to your shell profile (e.g., `~/.bashrc`, `~/.zshrc`, `~/.profile` for macOS/Linux, or system environment variables for Windows).
 
-\`\`\`bash
-
+```bash
 # Example for .zshrc or .bashrc
 
 echo 'export GROQ_API_KEY="your_groq_api_key_here"' >> ~/.zshrc
-source ~/.zshrc # Reload your shell
-\`\`\`
+source ~/.zshrc
+```
 
 ### Option 3: Create a Global `.env` File
 
 Create a `.env` file in a global configuration directory:
 
-\`\`\`bash
+```bash
 mkdir -p ~/.pr-desc
 echo "GROQ_API_KEY=your_groq_api_key_here" > ~/.pr-desc/.env
-\`\`\`
+```
 
 ## Usage
 
 ### Generate PR Description
 
-\`\`\`bash
+```bash
 
 # Generate PR description for current branch vs main (default)
 
@@ -109,11 +111,11 @@ pr-desc gen --template detailed
 # Limit the number of files analyzed (default is 20)
 
 pr-desc gen --max-files 15
-\`\`\`
+```
 
 ### List Available Models
 
-\`\`\`bash
+```bash
 
 # List all available providers and their default models
 
@@ -122,11 +124,11 @@ pr-desc models
 # List all models for a specific provider
 
 pr-desc models -p groq
-\`\`\`
+```
 
 ### Manage Configuration
 
-\`\`\`bash
+```bash
 
 # Set an API key
 
@@ -143,16 +145,14 @@ pr-desc config get <provider>
 # Show the entire global configuration
 
 pr-desc config show
-\`\`\`
+```
 
 ## Available Templates
 
-- \`standard\` - Balanced description with a clear title, changes, reasons, and notes. (Default)
-- \`detailed\` - Comprehensive description with sections for Summary, Changes Made, Technical Details, Testing, Breaking Changes, and Additional Notes.
-- \`minimal\` - Concise summary with bullet points of key changes and breaking changes.
+- `standard` - Balanced description with a clear title, changes, reasons, and notes. (Default)
+- `detailed` - Comprehensive description with sections for Summary, Changes Made, Technical Details, Testing, Breaking Changes, and Additional Notes.
+- `minimal` - Concise summary with bullet points of key changes and breaking changes.
 
 ## Available Providers & Models
 
 The CLI supports the following free and open-source AI providers. You can specify a model using the `-m` or `--model` option.
-
-| Provider | Default Model | Other Options
