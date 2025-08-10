@@ -28,11 +28,11 @@ Before using `pr-desc` to generate descriptions, you need to configure your AI p
 
 This method stores your API key securely in a global configuration file (`~/.pr-desc/config.json`), making it accessible from any directory.
 
-# For Groq (recommended for speed):
+**For Groq (recommended for speed):**
 
 pr-desc config set groq your_groq_api_key_here
 
-# For DeepInfra:
+**For DeepInfra:**
 
 pr-desc config set deepinfra your_deepinfra_api_key_here
 
@@ -48,7 +48,6 @@ pr-desc config get groq
 Add your API key directly to your shell's profile file (e.g., `~/.bashrc`, `~/.zshrc`, or `~/.profile` on macOS/Linux; system environment variables on Windows).
 
 ```bash
-
 # Example for .zshrc or .bashrc
 
 echo 'export GROQ_API_KEY="your_groq_api_key_here"' >> ~/.zshrc
@@ -71,7 +70,6 @@ Navigate to any of your local Git repositories with unmerged changes to generate
 ### Generate PR Description
 
 ```bash
-
 # Generate PR description for current branch compared to 'main' (default)
 
 pr-desc generate
@@ -102,7 +100,6 @@ pr-desc gen --max-files 15
 Discover which AI models are supported by each provider:
 
 ```bash
-
 # List all available providers and their default models
 
 pr-desc models
@@ -117,7 +114,6 @@ pr-desc models -p groq
 Control your `pr-desc` settings and API keys:
 
 ```bash
-
 # Set an API key for a provider
 
 pr-desc config set <provider> <api-key>
