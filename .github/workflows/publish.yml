@@ -26,6 +26,6 @@ jobs:
         run: npm run build
 
       - name: Publish to npm
-        run: npm run release:patch --access public # Publish the package
+        run: npm run publish # Publish the package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
