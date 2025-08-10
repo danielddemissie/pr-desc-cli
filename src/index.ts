@@ -66,7 +66,7 @@ program
           process.exit(1);
         }
       } else {
-        spinner.text = `Generating PR description using provider: ${options.provider} model: ${options.model}...`;
+        spinner.text = "Generating PR description with AI...";
       }
 
       // Generate PR description
