@@ -27,7 +27,7 @@
     "dotenv": "^16.4.0",
     "ora": "^8.0.0",
     "simple-git": "^3.25.0",
-    "zod": "^4.0.17"
+    "zod": "^3.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
