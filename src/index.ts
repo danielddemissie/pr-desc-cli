@@ -8,6 +8,7 @@ import { getGitChanges } from "./git-utils.js";
 import { config } from "dotenv";
 import { getSupportedModels, SUPPORTED_MODELS } from "./models.js";
 import { loadConfig, setApiKey, getApiKey } from "./config.js";
+import { readFileSync } from "fs";
 
 config();
 
@@ -34,6 +35,7 @@ program
     "PR template style (standard, detailed, minimal)",
     "standard"
   )
+  .option("--template-file <path>", "Path to a custom Markdown template file") // user-custom template
   .option("--max-files <number>", "Maximum number of files to analyze", "20")
   .action(async (options) => {
     const spinner = ora("Analyzing git changes...").start();
@@ -49,13 +51,30 @@ program
         return;
       }
 
-      spinner.text = "Generating PR description with AI...";
+      let customTemplateContent: string | undefined;
+      if (options.templateFile) {
+        try {
+          customTemplateContent = readFileSync(options.templateFile, "utf-8");
+          spinner.text =
+            "Generating PR description with AI using custom template...";
+        } catch (fileError) {
+          spinner.fail(
+            `Error reading custom template file: ${
+              fileError instanceof Error ? fileError.message : "Unknown error"
+            }`
+          );
+          process.exit(1);
+        }
+      } else {
+        spinner.text = "Generating PR description with AI...";
+      }
 
       // PR description
       const description = await generatePRDescription(changes, {
         provider: options.provider,
         model: options.model,
         template: options.template,
+        customTemplateContent: customTemplateContent, // Pass the custom template content
       });
 
       spinner.succeed("PR description generated!");
