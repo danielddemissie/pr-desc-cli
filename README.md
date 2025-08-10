@@ -63,6 +63,40 @@ mkdir -p ~/.pr-desc
 echo "GROQ_API_KEY=your_groq_api_key_here" > ~/.pr-desc/.env
 ```
 
+### Option 4: Use Local Models with Ollama (Offline Generation)
+
+For completely offline PR description generation, you can use local AI models via [Ollama](https://ollama.ai/).
+
+**Recommended Local Model:**
+For a good balance of performance and resource usage, we recommend `llama3.1` (the 8B version). It's highly capable for instruction-following and general text generation, making it ideal for PR descriptions.
+
+**Setup Steps for macOS:**
+
+1.  **Install Ollama**:
+
+    - Download the macOS application from [https://ollama.ai/download](https://ollama.ai/download).
+    - Install it by dragging the app to your Applications folder.
+    - Launch Ollama; it will run in the background.
+
+2.  **Pull the `llama3.1` Model**:
+    Open your Terminal and run:
+
+    ```bash
+    ollama pull llama3.1
+    ```
+
+    This will download the model weights (approx. 4.7 GB).
+
+3.  **Verify Installation**:
+    You can list installed models with `ollama list`.
+
+4.  **Use `pr-desc` with the Local Model**:
+    Once `llama3.1` is pulled, specify the `local` provider and `llama3.1` model:
+    ```bash
+    pr-desc generate --provider local --model llama3.1
+    ```
+    This will use your local `llama3.1` model for generation.
+
 ## Usage
 
 Navigate to any of your local Git repositories with unmerged changes to generate a PR description.

@@ -66,15 +66,15 @@ program
           process.exit(1);
         }
       } else {
-        spinner.text = "Generating PR description with AI...";
+        spinner.text = `Generating PR description using provider: ${options.provider} model: ${options.model}...`;
       }
 
-      // PR description
+      // Generate PR description
       const description = await generatePRDescription(changes, {
         provider: options.provider,
         model: options.model,
         template: options.template,
-        customTemplateContent: customTemplateContent, // Pass the custom template content
+        customTemplateContent: customTemplateContent,
       });
 
       spinner.succeed("PR description generated!");
