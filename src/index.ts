@@ -11,10 +11,14 @@ import { loadConfig, setApiKey, getApiKey, saveConfig } from "./config.js";
 import { readFileSync } from "fs";
 import { input, select, password } from "@inquirer/prompts";
 import { maskApiKey } from "./utils.js";
-import packageJson from "../package.json" with { type: "json" } 
+import path from "path";
+import { PackageJson } from "./types.js";
 
 config();
 
+const packageJson: PackageJson = JSON.parse(
+  readFileSync(path.resolve(process.cwd(), "package.json"), "utf-8")
+);
 const program = new Command();
 
 // Get program metadata from package.json
