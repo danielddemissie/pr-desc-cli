@@ -11,15 +11,17 @@ import { loadConfig, setApiKey, getApiKey, saveConfig } from "./config.js";
 import { readFileSync } from "fs";
 import { input, select, password } from "@inquirer/prompts";
 import { maskApiKey } from "./utils.js";
+import packageJson from "../package.json" with { type: "json" } 
 
 config();
 
 const program = new Command();
 
+// Get program metadata from package.json
 program
-  .name("pr-desc")
-  .description("AI-powered PR description generator")
-  .version("1.0.0");
+  .name(packageJson.name)
+  .description(packageJson.description)
+  .version(packageJson.version);
 
 program
   .command("generate")
