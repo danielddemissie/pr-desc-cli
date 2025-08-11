@@ -11,6 +11,10 @@ An intelligent command-line interface (CLI) tool designed to streamline your dev
 - 📋 **Model Transparency**: Easily list and select from a range of supported AI models for each provider.
 - 🔧 **Robust & Reliable**: Built with TypeScript for enhanced type safety and maintainability.
 - ✍️ **Custom Template Files**: Provide your own Markdown file as a template for highly tailored PR descriptions.
+- 🧠 **AI-Powered PR Review & Feedback (Incoming)**: Get AI-generated suggestions and improvements for your code and PR descriptions.
+- ✨ **Interactive Configuration Wizard (Incoming)**: A guided setup process to easily configure `pr-desc` for the first time.
+- 🚀 **Direct PR Creation (Incoming)**: Create new GitHub Pull Requests directly from the CLI with AI-generated descriptions.
+- ✏️ **PR Description Editing (Incoming)**: Update existing GitHub Pull Request descriptions with AI-generated content.
 
 ## Installation
 
@@ -262,3 +266,39 @@ The CLI supports the following free and open-source AI providers. You can specif
 | Groq      | `llama-3.1-8b-instant`                        | `llama-3.3-70b-versatile`, `mixtral-8x7b-32768`, `gemma2-9b-it`                                 |
 | DeepInfra | `meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo` | `meta-llama/Llama-3.3-70B-Instruct`, `deepseek-ai/DeepSeek-V3`, `deepseek-ai/DeepSeek-R1-Turbo` |
 | Local     | `llama3.1`                                    | `llama3.3`, `codellama`, `deepseek-r1`                                                          |
+
+## Incoming Features
+
+We're constantly working to enhance `pr-desc` and streamline your development workflow. Here's a sneak peek at what's coming next:
+
+### AI-Powered PR Review & Feedback
+
+**Feature:** Get intelligent, AI-generated feedback on your Pull Requests. `pr-desc` will analyze the code changes and the PR description to provide suggestions for improvements, identify potential issues, and ensure consistency, acting as an automated "first reviewer."
+
+**Value:** Speeds up the code review process, helps maintain code quality, and ensures PRs are well-documented before human review.
+
+**Command Idea:** `pr-desc review [pr-url | --local]`
+
+### Interactive Configuration Wizard
+
+**Feature:** A guided, step-by-step setup process for `pr-desc`. Instead of manually editing configuration files or running multiple `config set` commands, you'll be prompted through questions to set up your preferred AI provider, API keys, default templates, and more.
+
+**Value:** Simplifies the initial setup, making `pr-desc` more accessible and user-friendly for new users.
+
+**Command Idea:** `pr-desc init`
+
+### Direct PR Creation
+
+**Feature:** Create new GitHub Pull Requests directly from the `pr-desc` CLI. This command will generate the PR description using AI and then seamlessly create the PR on GitHub, leveraging the `gh` CLI internally, without any manual piping or temporary files.
+
+**Value:** Automates the entire PR creation workflow, from description generation to submission, saving time and reducing manual steps.
+
+**Command Idea:** `pr-desc create-pr [--base <branch>] [--template <style> | --template-file <path>]`
+
+### PR Description Editing
+
+**Feature:** Update the description of an existing GitHub Pull Request using AI-generated content. You'll be able to specify a PR (by number or URL) and have `pr-desc` generate a new description (or refine the existing one) and apply it directly to the PR. This will also leverage the `gh` CLI internally.
+
+**Value:** Allows for easy refinement of PR descriptions after initial creation, ensuring they remain accurate and comprehensive as changes evolve.
+
+**Command Idea:** `pr-desc edit-pr <pr-number | pr-url> [--template <style> | --template-file <path>]`
