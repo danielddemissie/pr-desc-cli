@@ -52,17 +52,17 @@ export interface PackageJson {
   name: string;
   version: string;
   description: string;
-  main: string;
-  scripts: {
+  main?: string;
+  scripts?: {
     [key: string]: string;
   };
-  keywords: string[];
-  author: string;
-  license: string;
-  dependencies: {
+  keywords?: string[];
+  author?: string;
+  license?: string;
+  dependencies?: {
     [key: string]: string;
   };
-  devDependencies: {
+  devDependencies?: {
     [key: string]: string;
   };
 }
