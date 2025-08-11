@@ -109,7 +109,7 @@ Navigate to any of your local Git repositories with unmerged changes to generate
 
 ```bash
 # Generate PR description for current branch compared to 'main' (default)
-
+# This output is pure Markdown, suitable for piping to other commands.(like gh pr create --fill --body-file -)
 pr-desc generate
 
 # Use a different base branch for comparison
@@ -139,7 +139,17 @@ pr-desc gen --template-file ./my-pr-template.md
 # Limit the number of files analyzed to prevent excessive token usage (default is 20)
 
 pr-desc gen --max-files 15
+
+# Perform a dry run to see the output with decorative elements
+# This is useful for interactive viewing in the terminal.
+pr-desc generate --dry-run
 ```
+
+### "Dry Run" Mode for Generation
+
+**Feature:** Preview AI-generated PR descriptions with decorative output (like the `═` and `🚀` lines) for easy readability in the terminal. This mode is ideal for reviewing the generated content before using it to create or update a live PR. The default `pr-desc generate` command will now output pure Markdown, making it directly pipeable for automation.
+
+**Value:** Provides a safe environment for testing templates, experimenting with different models, and ensuring the AI output meets your expectations without unintended side effects. The separation of concerns between interactive viewing and automated piping enhances flexibility.
 
 ### Seamless Integration with GitHub CLI (`gh`)
 
@@ -152,23 +162,21 @@ You can seamlessly integrate `pr-desc` with the [GitHub CLI](https://cli.github.
 
 **How to use:**
 
-Pipe the output of `pr-desc` directly into `gh pr create`. We'll use `grep -v` to filter out the decorative lines from `pr-desc`'s output, ensuring only the clean Markdown description is passed.
+Pipe the output of `pr-desc` directly into `gh pr create` or `gh pr edit`.
 
 ```bash
-pr-desc generate | grep -v '═' | grep -v '🚀' | gh pr create --fill --body-file -
+pr-desc generate | gh pr create --fill --body-file -
 ```
 
-- `pr-desc generate`: Generates the PR description.
-- `| grep -v '═' | grep -v '🚀'`: Pipes the output and filters out lines containing '═' (the separator) and '🚀' (the success message icon).
-- `| gh pr create`: Pipes the filtered description to the `gh pr create` command.
+- `pr-desc generate`: Generates the PR description (pure Markdown output).
+- `| gh pr create`: Pipes the generated description to the `gh pr create` command.
 - `--fill`: This option tells `gh` to automatically fill in the PR title and body from the current branch's commits. The piped content from `pr-desc` will then override the body.
 - `--body-file -`: This crucial part tells `gh pr create` to read the PR body content from standard input (the pipe), instead of a file.
 
 This single command will:
 
 1.  Generate your PR description using AI.
-2.  Clean up the output.
-3.  Create a new pull request on GitHub, automatically filling its title and using the AI-generated content as its body.
+2.  Create a new pull request on GitHub, automatically filling its title and using the AI-generated content as its body
 
 ### List Available Models
 
