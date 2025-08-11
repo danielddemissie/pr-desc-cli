@@ -11,14 +11,28 @@ import { loadConfig, setApiKey, getApiKey, saveConfig } from "./config.js";
 import { readFileSync } from "fs";
 import { input, select, password } from "@inquirer/prompts";
 import { maskApiKey } from "./utils.js";
-import path from "path";
+import { resolve, dirname } from "path";
 import { PackageJson } from "./types.js";
+import { fileURLToPath } from "url";
 
 config();
 
-const packageJson: PackageJson = JSON.parse(
-  readFileSync(path.resolve(process.cwd(), "package.json"), "utf-8")
-);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJsonPath = resolve(__dirname, "../package.json");
+
+let packageJson: PackageJson;
+try {
+  packageJson = JSON.parse(
+    readFileSync(packageJsonPath, "utf8")
+  ) as PackageJson;
+} catch (error) {
+  packageJson = {
+    name: "pr-desc-cli",
+    version: "1.0.0",
+    description: "AI-powered PR description generator",
+  };
+}
 const program = new Command();
 
 // Get program metadata from package.json
