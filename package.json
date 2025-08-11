@@ -41,10 +41,13 @@
     "LICENSE"
   ],
   "keywords": [
+    "pr-desc-cli",
+    "pr-desc",
     "cli",
     "ai",
     "pull-request",
     "pr-description",
+    "pr-description-cli",
     "git",
     "typescript",
     "automation",
