@@ -11,7 +11,7 @@ import { loadConfig, setApiKey, getApiKey, saveConfig } from "./config.js";
 import { readFileSync } from "fs";
 import { input, select, password } from "@inquirer/prompts";
 import { maskApiKey } from "./utils.js";
-import { resolve, dirname } from "path";
+import { join, dirname } from "path";
 import { PackageJson } from "./types.js";
 import { fileURLToPath } from "url";
 
@@ -19,7 +19,7 @@ config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const packageJsonPath = resolve(__dirname, "../package.json");
+const packageJsonPath = join(__dirname, "..", "package.json");
 
 let packageJson: PackageJson;
 try {
