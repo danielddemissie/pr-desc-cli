@@ -11,8 +11,12 @@ An intelligent command-line interface (CLI) tool designed to streamline your dev
 - 📋 **Model Transparency**: Easily list and select from a range of supported AI models for each provider.
 - 🔧 **Robust & Reliable**: Built with TypeScript for enhanced type safety and maintainability.
 - ✍️ **Custom Template Files**: Provide your own Markdown file as a template for highly tailored PR descriptions.
+- ✨ **Interactive Configuration Wizard**: A guided setup process to easily configure `pr-desc` for the first time.
+- 🧪 **"Dry Run" Mode for Generation**: Preview AI-generated PR descriptions without actually creating a PR or consuming API quotas.
+
+---
+
 - 🧠 **AI-Powered PR Review & Feedback (Incoming)**: Get AI-generated suggestions and improvements for your code and PR descriptions.
-- ✨ **Interactive Configuration Wizard (Incoming)**: A guided setup process to easily configure `pr-desc` for the first time.
 - 🚀 **Direct PR Creation (Incoming)**: Create new GitHub Pull Requests directly from the CLI with AI-generated descriptions.
 - ✏️ **PR Description Editing (Incoming)**: Update existing GitHub Pull Request descriptions with AI-generated content.
 
@@ -28,7 +32,17 @@ npm install -g pr-desc-cli
 
 Before using `pr-desc` to generate descriptions, you need to configure your AI provider's API key. You have several convenient options:
 
-### Option 1: Set API Key using the CLI (Recommended)
+### Setup with Interactive Wizard (Recommended)
+
+For a quick and guided setup, run the interactive wizard:
+
+```bash
+pr-desc init
+```
+
+This will prompt you for your preferred AI provider, API keys, default template, and base branch, saving your choices to a global configuration file.
+
+### Option 1: Set API Key using the CLI
 
 This method stores your API key securely in a global configuration file (`~/.pr-desc/config.json`), making it accessible from any directory.
 
@@ -286,14 +300,6 @@ We're constantly working to enhance `pr-desc` and streamline your development wo
 **Value:** Speeds up the code review process, helps maintain code quality, and ensures PRs are well-documented before human review.
 
 **Command Idea:** `pr-desc review [pr-url | --local]`
-
-### Interactive Configuration Wizard
-
-**Feature:** A guided, step-by-step setup process for `pr-desc`. Instead of manually editing configuration files or running multiple `config set` commands, you'll be prompted through questions to set up your preferred AI provider, API keys, default templates, and more.
-
-**Value:** Simplifies the initial setup, making `pr-desc` more accessible and user-friendly for new users.
-
-**Command Idea:** `pr-desc init`
 
 ### Direct PR Creation
 
