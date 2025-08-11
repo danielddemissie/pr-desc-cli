@@ -7,8 +7,10 @@ import { generatePRDescription } from "./pr-generator.js";
 import { getGitChanges } from "./git-utils.js";
 import { config } from "dotenv";
 import { getSupportedModels, SUPPORTED_MODELS } from "./models.js";
-import { loadConfig, setApiKey, getApiKey } from "./config.js";
+import { loadConfig, setApiKey, getApiKey, saveConfig } from "./config.js";
 import { readFileSync } from "fs";
+import { input, select, password } from "@inquirer/prompts";
+import { maskApiKey } from "./utils.js";
 
 config();
 
@@ -125,6 +127,95 @@ program
     console.log("Create a .env file or set environment variables:");
     console.log(chalk.green("GROQ_API_KEY=your_groq_key"));
     console.log(chalk.green("DEEPINFRA_API_KEY=your_deepinfra_key"));
+  });
+
+program
+  .command("init")
+  .description("Start an interactive wizard to configure pr-desc")
+  .action(async () => {
+    console.log(
+      chalk.bold.cyan("\n✨ Welcome to the pr-desc setup wizard! ✨\n")
+    );
+    console.log(
+      "Let's configure your preferences for generating PR descriptions.\n"
+    );
+
+    const currentConfig = loadConfig();
+
+    const defaultProvider = await select({
+      message: "Which AI provider would you like to use by default?",
+      choices: Object.keys(SUPPORTED_MODELS).map((key) => ({
+        value: key,
+        name: key,
+      })),
+      default: currentConfig.defaultProvider || "groq",
+    });
+
+    let groqApiKey: string | undefined;
+    if (defaultProvider === "groq") {
+      // If we already have a key, set default
+      if (getApiKey("groq")) {
+        groqApiKey = await input({
+          message: "Enter your Groq API Key (leave blank to skip):",
+          default: maskApiKey(getApiKey("groq") as string),
+        });
+      } else {
+        groqApiKey = await password({
+          message: "Enter your Groq API Key (leave blank to skip):",
+        });
+      }
+    }
+
+    let deepinfraApiKey: string | undefined;
+    if (defaultProvider === "deepinfra") {
+      if (getApiKey("deepinfra")) {
+        deepinfraApiKey = await input({
+          message: "Enter your DeepInfra API Key (leave blank to skip):",
+          default: maskApiKey(getApiKey("deepinfra") as string),
+        });
+      } else {
+        deepinfraApiKey = await password({
+          message: "Enter your DeepInfra API Key (leave blank to skip):",
+        });
+      }
+    }
+
+    const defaultTemplate = await select({
+      message: "Which PR description template style do you prefer by default?",
+      choices: ["standard", "detailed", "minimal"].map((t) => ({
+        value: t,
+        name: t,
+      })),
+      default: currentConfig.defaultTemplate || "standard",
+    });
+
+    const defaultBaseBranch = await input({
+      message: "What is your default base branch (e.g., main, develop)?",
+      default: currentConfig.defaultBaseBranch || "main",
+    });
+
+    currentConfig.defaultProvider = defaultProvider;
+    currentConfig.defaultTemplate = defaultTemplate;
+    currentConfig.defaultBaseBranch = defaultBaseBranch;
+    saveConfig(currentConfig);
+
+    // Save API keys if provided
+    if (groqApiKey) {
+      setApiKey("groq", groqApiKey);
+    }
+    if (deepinfraApiKey) {
+      setApiKey("deepinfra", deepinfraApiKey);
+    }
+
+    console.log(chalk.green("\n✅ pr-desc configuration saved successfully!"));
+    console.log(
+      chalk.gray("You can always review your config with 'pr-desc config show'")
+    );
+    console.log(
+      chalk.gray(
+        "And run 'pr-desc generate' to create your first PR description."
+      )
+    );
   });
 
 program
