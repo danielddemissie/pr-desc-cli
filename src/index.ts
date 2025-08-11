@@ -37,6 +37,11 @@ program
   )
   .option("--template-file <path>", "Path to a custom Markdown template file") // user-custom template
   .option("--max-files <number>", "Maximum number of files to analyze", "20")
+  .option(
+    "--dry-run",
+    "Display decorative output for interactive review (dry run)",
+    false
+  )
   .action(async (options) => {
     const spinner = ora("Analyzing git changes...").start();
 
@@ -79,11 +84,16 @@ program
 
       spinner.succeed("PR description generated!");
 
-      console.log("\n" + chalk.blue("═".repeat(60)));
-      console.log(chalk.bold.cyan("🚀 Generated PR Description"));
-      console.log(chalk.blue("═".repeat(60)));
-      console.log("\n" + description + "\n");
-      console.log(chalk.blue("═".repeat(60)));
+      if (options.dryRun) {
+        console.log("\n" + chalk.blue("═".repeat(60)));
+        console.log(chalk.bold.cyan("🚀 Generated PR Description (Dry Run)"));
+        console.log(chalk.blue("═".repeat(60)));
+        console.log("\n" + description + "\n");
+        console.log(chalk.blue("═".repeat(60)));
+      } else {
+        // Pure output for piping to gh
+        console.log(description);
+      }
     } catch (error) {
       spinner.fail(
         `Error: ${error instanceof Error ? error.message : "Unknown error"}`
