@@ -1,6 +1,6 @@
 {
   "name": "pr-desc-cli",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "AI-powered PR description generator",
   "author": "Daniel Demelash <danielddemissie@gmail.com>",
   "main": "dist/index.js",
