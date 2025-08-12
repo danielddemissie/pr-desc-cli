@@ -123,6 +123,12 @@ ${
 }
 `;
 
+  const finalAiInstruction = `
+  Do *not* include any meta information or explanations — just the PR content
+  Do **not** include labels like "PR Description:", "Title:", or meta text — only the final PR content.
+  Do *not* include any labels like "Here's a suggested PR description", "Feel free to modify it"
+  `;
+
   // Check for custom template content
   if (customTemplateContent) {
     return `
@@ -140,6 +146,7 @@ ${customTemplateContent}
 ---
 
 Please generate the PR description by filling the custom template based on the git changes provided.
+${finalAiInstruction}
 `;
   }
 
@@ -147,8 +154,8 @@ Please generate the PR description by filling the custom template based on the g
     standard: `${gitDataSection}
 
 You are an expert software engineer.  
-Write a **standard** **production-ready** Pull Request description in clean Markdown.  
-Do **not** include labels like "PR Description:", "Title:", or any meta explanations — only the final PR content.
+Write a **standard** **production-ready** Pull Request description in clean Markdown.
+${finalAiInstruction}  
 
 Follow this exact structure:
 
@@ -199,7 +206,7 @@ Follow this exact structure:
 
 You are an expert software engineer.  
 Write a **production-ready** and **comprehensive** Pull Request description in clean Markdown.  
-Do **not** include labels like "PR Description:", "Title:", or meta text — only the final PR content.
+${finalAiInstruction}
 
 Follow this exact structure:
 
@@ -241,7 +248,7 @@ Follow this exact structure:
 
 You are an expert software engineer.  
 Write a **concise** and **minimal** Pull Request description in clean Markdown.  
-Do **not** include labels like "PR Description:", "Title:", or meta text — only the final PR content.
+${finalAiInstruction}
 
 Follow this exact structure:
 
