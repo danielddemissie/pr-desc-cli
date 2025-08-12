@@ -40,6 +40,8 @@ export interface GenerateOptions {
   model?: string;
   template: string;
   customTemplateContent?: string;
+  maxFiles?: number;
+  maxDiffLines?: number;
 }
 
 export interface SimpleGitFile {
@@ -65,4 +67,13 @@ export interface PackageJson {
   devDependencies?: {
     [key: string]: string;
   };
+}
+
+export interface ProviderConfig {
+  baseURL: string;
+  apiKey?: string;
+}
+
+export interface SupportedProviders {
+  [key: string]: ProviderConfig;
 }
