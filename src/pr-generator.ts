@@ -1,9 +1,19 @@
 import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
-import type { GitChanges, GenerateOptions } from "./types.js";
+import type {
+  GitChanges,
+  GenerateOptions,
+  SupportedProviders,
+} from "./types.js";
 import { getDefaultModel } from "./models.js";
 import { getApiKey } from "./config.js";
 
+/**
+ * Generate a Pull Request description based on the provided git changes and options.
+ * @param changes The git changes to include in the PR description.
+ * @param options The options to customize the PR description generation.
+ * @returns The generated PR description.
+ */
 export async function generatePRDescription(
   changes: GitChanges,
   options: GenerateOptions
@@ -12,7 +22,9 @@ export async function generatePRDescription(
   const prompt = buildPrompt(
     changes,
     options.template,
-    options.customTemplateContent
+    options.customTemplateContent,
+    options.maxFiles,
+    options.maxDiffLines
   );
 
   const { text } = await generateText({
@@ -25,85 +37,99 @@ export async function generatePRDescription(
   return text;
 }
 
+/**
+ * Get the AI model for the specified provider and model name.
+ * @param provider The name of the AI provider.
+ * @param modelName The name of the model to use (optional).
+ * @returns The AI model instance.
+ */
 function getAIModel(provider: string, modelName?: string) {
   const defaultModel = getDefaultModel(provider);
+  const supportedProviders: SupportedProviders = {
+    groq: {
+      baseURL: "https://api.groq.com/openai/v1",
+      apiKey: getApiKey("groq"),
+    },
+    deepInfra: {
+      baseURL: "https://api.deepinfra.com/v1/openai",
+      apiKey: getApiKey("deepinfra"),
+    },
+    local: {
+      baseURL: "http://localhost:11434/v1",
+      apiKey: "ollama", // NOTE: just for local development
+    },
+  };
 
-  switch (provider) {
-    case "groq":
-      const groqApiKey = getApiKey("groq");
-      if (!groqApiKey) {
-        throw new Error(
-          "GROQ_API_KEY not found. Set it globally with 'export GROQ_API_KEY=your_key' or use 'pr-desc config set groq your_key'"
-        );
-      }
-      const groq = createOpenAI({
-        baseURL: "https://api.groq.com/openai/v1",
-        apiKey: groqApiKey,
-      });
-      return groq(modelName || defaultModel);
-
-    case "deepinfra":
-      const deepinfraApiKey = getApiKey("deepinfra");
-      if (!deepinfraApiKey) {
-        throw new Error(
-          "DEEPINFRA_API_KEY not found. Set it globally with 'export DEEPINFRA_API_KEY=your_key' or use 'pr-desc config set deepinfra your_key'"
-        );
-      }
-      const deepinfra = createOpenAI({
-        baseURL: "https://api.deepinfra.com/v1/openai",
-        apiKey: deepinfraApiKey,
-      });
-      return deepinfra(modelName || defaultModel);
-
-    case "local":
-      const ollama = createOpenAI({
-        baseURL: "http://localhost:11434/v1",
-        apiKey: "ollama",
-      });
-      return ollama(modelName || defaultModel);
-
-    default:
-      throw new Error(`Unsupported provider: ${provider}`);
+  // handle unsupported providers
+  if (!supportedProviders[provider]) {
+    throw new Error(`Unsupported provider: ${provider}`);
   }
+
+  const { baseURL, apiKey } = supportedProviders[provider];
+  return createOpenAI({
+    baseURL,
+    apiKey,
+  })(modelName || defaultModel);
 }
 
+/**
+ * Build the prompt for the AI model.
+ * @param changes The git changes to include in the prompt.
+ * @param template The template to use for the prompt.
+ * @param customTemplateContent Custom content to include in the prompt.
+ * @param maxFiles The maximum number of files to include in the prompt.
+ * @param maxDiffLines The maximum number of diff lines to include in the prompt.
+ * @returns The constructed prompt string.
+ */
 function buildPrompt(
   changes: GitChanges,
   template: string,
-  customTemplateContent?: string
+  customTemplateContent?: string,
+  maxFiles: number = 20,
+  maxDiffLines: number = 500
 ): string {
   const gitDataSection = `
-## Git Changes Data for Analysis:
-- Base Branch: ${changes.baseBranch}
-- Current Branch: ${changes.currentBranch}
-- Files changed: ${changes.files.length}
-- Insertions: ${changes.stats.insertions}
-- Deletions: ${changes.stats.deletions}
+## Git Context
+**Base Branch:** ${changes.baseBranch}  
+**Current Branch:** ${changes.currentBranch}  
+**Files Changed:** ${changes.files.length}  
+**Insertions:** ${changes.stats.insertions}  
+**Deletions:** ${changes.stats.deletions}  
 
-### Recent Commits:
+### Recent Commits
 ${changes.commits
-  .map((commit) => `- ${commit.message} (${commit.hash.slice(0, 7)})`)
+  .map((commit) => `- ${commit.message.trim()} (${commit.hash.slice(0, 7)})`)
   .join("\n")}
 
-### Detailed File Changes:
+### File Changes
 ${changes.files
-  .map(
-    (file) => `
-**${file.path}** (Status: ${file.status}, +${file.additions}, -${
+  .slice(0, maxFiles)
+  .map((file) => {
+    const patch = file.patch
+      ? file.patch.slice(0, maxDiffLines) +
+        (file.patch.length > maxDiffLines ? "..." : "")
+      : "";
+    return `**${file.path}** — Status: ${file.status}, +${file.additions}, -${
       file.deletions
-    })
+    }
+${patch ? `\`\`\`diff\n${patch}\n\`\`\`` : ""}`;
+  })
+  .join("\n\n")}
+
 ${
-  file.patch
-    ? `\`\`\`diff\n${file.patch.slice(0, 500)}${
-        file.patch.length > 500 ? "..." : ""
-      }\n\`\`\``
+  changes.files.length > maxFiles
+    ? `\n...and ${changes.files.length - maxFiles} more files changed.`
     : ""
 }
-`
-  )
-  .join("\n")}
 `;
 
+  const finalAiInstruction = `
+  Do *not* include any meta information or explanations — just the PR content
+  Do **not** include labels like "PR Description:", "Title:", or meta text — only the final PR content.
+  Do *not* include any labels like "Here's a suggested PR description", "Feel free to modify it"
+  `;
+
+  // Check for custom template content
   if (customTemplateContent) {
     return `
 You are an expert software engineer writing a Pull Request description.
@@ -120,40 +146,121 @@ ${customTemplateContent}
 ---
 
 Please generate the PR description by filling the custom template based on the git changes provided.
+${finalAiInstruction}
 `;
   }
 
   const templates = {
     standard: `${gitDataSection}
 
-Create a PR description with:
-1. A clear, concise title
-2. What changes were made
-3. Why these changes were necessary
-4. Any breaking changes or important notes
+You are an expert software engineer.  
+Write a **standard** **production-ready** Pull Request description in clean Markdown.
+${finalAiInstruction}  
 
-Format as markdown.`,
+Follow this exact structure:
+
+# Title
+[Short, clear title summarizing the change in under 10 words.]
+
+---
+
+## Summary of Changes
+[Concise high-level overview of what this PR does, focusing on the end result.]
+
+---
+
+## What Was Changed
+[List the specific code modifications, features added, bugs fixed, or files updated. Use bullet points for clarity.]
+
+---
+
+## Why This Change Was Made
+[Explain the rationale, problem solved, or context from related work.]
+
+---
+
+## Technical Details
+[Include implementation specifics, relevant algorithms, dependencies, DB changes, env vars, or API modifications.]
+
+---
+
+## How to Test
+1. Checkout this branch.
+2. Run \`npm install\` and \`npm run dev\`.
+3. Navigate to **[feature/page/URL]**.
+4. Perform **[specific actions]**.
+5. Verify **[expected results]**.
+
+---
+
+## Breaking Changes
+[List any breaking changes or write \`None\`. Include migration steps if applicable.]
+
+---
+
+## Related Issues / References
+[Optional: Link to Jira ticket, GitHub issue, or related PR.]
+`,
 
     detailed: `${gitDataSection}
 
-Create a detailed PR description with:
-1. ## Summary - Brief overview
-2. ## Changes Made - Detailed list of changes
-3. ## Technical Details - Implementation specifics
-4. ## Testing - How to test these changes
-5. ## Breaking Changes - Any breaking changes
-6. ## Additional Notes - Any other relevant information
+You are an expert software engineer.  
+Write a **production-ready** and **comprehensive** Pull Request description in clean Markdown.  
+${finalAiInstruction}
 
-Format as markdown with proper sections.`,
+Follow this exact structure:
+
+# Title
+[Short, clear title summarizing the change in under 10 words.]
+
+---
+
+## Summary of Changes
+[Brief high-level overview of what this PR achieves.]
+
+---
+
+## Changes Made
+[Detailed bullet list of modifications, new features, and fixes.]
+
+---
+
+## Technical Details
+[Explain the approach, important design decisions, dependencies, DB changes, env vars, or API changes.]
+
+---
+
+## Testing
+[Steps to test the PR — actions, expected results, and verification points.]
+
+---
+
+## Breaking Changes
+[List any breaking changes or write \`None\`. Include migration instructions if necessary.]
+
+---
+
+## Additional Notes
+[Optional extra context, performance considerations, or known limitations.]
+`,
 
     minimal: `${gitDataSection}
 
-Create a minimal PR description with:
-- One line summary of what was changed
-- Brief bullet points of key changes
-- Any breaking changes (if applicable)
+You are an expert software engineer.  
+Write a **concise** and **minimal** Pull Request description in clean Markdown.  
+${finalAiInstruction}
 
-Keep it concise and to the point.`,
+Follow this exact structure:
+
+# Title
+[Short, clear title summarizing the change.]
+
+## Summary
+[A two line summary of what was changed.]
+
+## Key Changes
+[Bullet points summarizing the main changes.]
+`,
   };
 
   return templates[template as keyof typeof templates] || templates.standard;
