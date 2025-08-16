@@ -8,6 +8,12 @@ import type {
 
 const git = simpleGit();
 
+/**
+ * Get the git changes between the current branch and a specified base branch.
+ * @param baseBranch Base branch to compare against
+ * @param maxFiles Maximum number of files to include in the changes
+ * @returns A promise that resolves to an object containing git changes information.
+ */
 export async function getGitChanges(
   baseBranch: string,
   maxFiles: number
@@ -31,6 +37,7 @@ export async function getGitChanges(
       {};
     numstatOutput.split("\n").forEach((line) => {
       if (!line.trim()) return;
+
       const [add, del, path] = line.split("\t");
       numstatMap[path] = {
         additions: add === "-" ? 0 : parseInt(add, 10),

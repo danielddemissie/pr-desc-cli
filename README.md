@@ -16,9 +16,9 @@ An intelligent command-line interface (CLI) tool designed to streamline your dev
 
 ---
 
-- 🧠 **AI-Powered PR Review & Feedback (Incoming)**: Get AI-generated suggestions and improvements for your code and PR descriptions.
-- 🚀 **Direct PR Creation (Incoming)**: Create new GitHub Pull Requests directly from the CLI with AI-generated descriptions.
-- ✏️ **PR Description Editing (Incoming)**: Update existing GitHub Pull Request descriptions with AI-generated content.
+- 🧠 **AI-Powered PR Review & Feedback (Upcoming)**: Get AI-generated suggestions and improvements for your code and PR descriptions.
+- 🚀 **Direct PR Creation (Upcoming)**: Create new GitHub Pull Requests directly from the CLI with AI-generated descriptions.
+- ✏️ **PR Description Editing (Upcoming)**: Update existing GitHub Pull Request descriptions with AI-generated content.
 
 ## Installation
 
@@ -28,7 +28,7 @@ To get started with `pr-desc`, install it globally via npm:
 npm install -g pr-desc-cli
 ```
 
-## Setup
+## Setup (Recommended)
 
 Before using `pr-desc` to generate descriptions, you need to configure your AI provider's API key If you're not using Local model like Llama3.1. You have several convenient options:
 
@@ -42,56 +42,35 @@ pr-desc init
 
 This will prompt you for your preferred AI provider, API keys, default template, and base branch, saving your choices to a global configuration file.
 
-### Manual Setup
+## Manual Setup
 
-### Option 1: Set API Key using the CLI
+### Option 1: Use Providers Like Groq and DeepInfra
 
 This method stores your API key securely in a global configuration file (`~/.pr-desc/config.json`), making it accessible from any directory.
 
-**For Groq (recommended for speed):**
-
-pr-desc config set groq `your_groq_api_key_here`
-you can get your API key from [groq.com](https://console.groq.com/keys)
-
-**For DeepInfra:**
-
-pr-desc config set deepinfra `your_deepinfra_api_key_here`
-you can get your API key from [deepinfra.com](https://deepinfra.com/docs)
-
-### Option 2: Set Environment Variables Globally
-
-Add your API key directly to your shell's profile file (e.g., `~/.bashrc`, `~/.zshrc`, or `~/.profile` on macOS/Linux; system environment variables on Windows).
-
 ```bash
-# Example for .zshrc or .bashrc
-
-echo 'export GROQ_API_KEY="your_groq_api_key_here"' >> ~/.zshrc
-source ~/.zshrc # Reload your shell to apply changes
+pr-desc config set <provider> <api-key>
 ```
 
-### Option 3: Create a Global `.env` File
+- **For Groq (recommended for speed):**
 
-Create a `.env` file within the global `pr-desc` configuration directory:
+  pr-desc config set groq `your_groq_api_key_here`
+  you can get your API key from [groq.com](https://console.groq.com/keys)
 
-```bash
-mkdir -p ~/.pr-desc
-echo "GROQ_API_KEY=your_groq_api_key_here" > ~/.pr-desc/.env
-```
+- **For DeepInfra:**
 
-### Option 4: Use Local Models with Ollama (Offline Generation)
+  pr-desc config set deepinfra `your_deepinfra_api_key_here`
+  you can get your API key from [deepinfra.com](https://deepinfra.com/docs)
 
-For completely offline PR description generation, you can use local AI models via [Ollama](https://ollama.ai/).
+### Option 2: Use Local Models with Ollama
 
-**Recommended Local Model:**
-For a good balance of performance and resource usage, I recommend `llama3.1` (the 8B version). It's light and it's highly capable for instruction-following and general text generation, making it ideal for PR descriptions generation.
+    For a good balance of performance and resource usage, I recommend using `llama3.1` (the 8B version, Weights approx 4.7GB). It's light and it's highly capable for instruction-following and general text generation, making it ideal for PR descriptions generation.
 
-**Setup Steps for macOS:**
+**Setup Steps:**
 
 1.  **Install Ollama**:
 
     - Download the macOS application from [https://ollama.ai/download](https://ollama.ai/).
-    - Install it by dragging the app to your Applications folder.
-    - Launch Ollama; it will run in the background.
 
 2.  **Pull the `llama3.1` Model**:
     Open your Terminal and run:
@@ -100,10 +79,11 @@ For a good balance of performance and resource usage, I recommend `llama3.1` (th
     ollama pull llama3.1
     ```
 
-    This will download the model weights (approx. 4.7 GB).
+3.  Set your provider config to `local`
 
-3.  **Verify Installation**:
-    You can list installed models with `ollama list`.
+    ```bash
+    pr-desc config set local ollama
+    ```
 
 4.  **Use `pr-desc` with the Local Model**:
     Once `llama3.1` is pulled, specify the `local` provider and `llama3.1` model:
@@ -116,7 +96,7 @@ After setting up `pr-desc` you can verify your stored configuration at any time:
 
 ```bash
 pr-desc config show
-pr-desc config get groq
+pr-desc config get <provider> # to get config for specific provider
 ```
 
 ## Usage
@@ -140,7 +120,7 @@ pr-desc gen --template-file ./my-pr-template.md # See 'Custom Template Files' se
 
 pr-desc gen --max-files 15 # You can limit the number of files analyzed to prevent excessive token usage (default is 20)
 
-pr-desc generate --dry-run # Returns a decorated out put
+pr-desc generate --dry-run # Returns a decorated output
 ```
 
 ### Seamless Integration with GitHub CLI (`gh`)
@@ -191,7 +171,11 @@ pr-desc config --help # get all options for config
 - `detailed` - A comprehensive description with dedicated sections for Summary, Changes Made, Technical Details, Testing instructions, Breaking Changes, and Additional Notes.
 - `minimal` - A concise, one-line summary followed by brief bullet points of key changes and any applicable breaking changes.
 
-## Custom Template Files
+```bash
+pr-desc gen template <template>
+```
+
+## Use Custom Template
 
 You can now provide your own Markdown file as a template for generating PR descriptions using the `--template-file <path>` option. This allows for ultimate customization, enabling teams to enforce specific PR formats, include mandatory sections, or embed project-specific guidelines directly into the generated description.
 
@@ -204,52 +188,28 @@ When you use a custom template, `pr-desc` will provide the AI model with all the
 
 [Short, clear title summarizing the change in under 10 words.]
 
----
-
 ## Summary of Changes
 
 [Provide a concise, high-level overview of what this pull request does. Focus on the end result, not implementation details.]
-
----
 
 ## What Was Changed
 
 [List the specific code modifications, features added, bugs fixed, or files updated. Use bullet points for clarity.]
 
----
-
 ## Why This Change Was Made
 
 [Explain the reason for the change. Include the problem it solves, any related issues, or context from previous work.]
 
----
-
 ## Technical Details
 
 [Include implementation details, relevant algorithms, dependencies, database changes, environment variables, or API modifications.]
-
----
-
-## How to Test
-
-1. Checkout this branch.
-2. Run `npm install` and `npm run dev`.
-3. Navigate to **[feature/page/URL]**.
-4. Perform **[specific actions]**.
-5. Verify **[expected behavior/results]**.
-
-`[It's recommended if you manually update this section to your specific project]`
-
----
 
 ## Breaking Changes
 
 [List any breaking changes or write `None`. Include migration instructions if applicable.]
 ```
 
-The AI will analyze the git changes and attempt to fill the sections of your custom template. You can guide the AI by adding comments like `AI will fill this section` within your template.
-
-This provides a powerful way to standardize your team's PRs while still leveraging AI for content generation.
+The AI will analyze the git changes and attempt to fill the sections of your custom template. This provides a powerful way to standardize your team's PRs while still leveraging AI for content generation.
 
 ## Available Providers & Models
 
@@ -261,30 +221,24 @@ The CLI supports the following free and open-source AI providers. You can specif
 | DeepInfra | `meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo` | `meta-llama/Llama-3.3-70B-Instruct`, `deepseek-ai/DeepSeek-V3`, `deepseek-ai/DeepSeek-R1-Turbo` |
 | Local     | `llama3.1`                                    | `llama3.3`, `codellama`, `deepseek-r1`                                                          |
 
-## Incoming Features
+## Upcoming Features
 
 We're constantly working to enhance `pr-desc` and streamline your development workflow. Here's a sneak peek at what's coming next:
 
-### AI-Powered PR Review & Feedback
+- ### AI-Powered PR Review & Feedback
 
-**Feature:** Get intelligent, AI-generated feedback on your Pull Requests. `pr-desc` will analyze the code changes and the PR description to provide suggestions for improvements, identify potential issues, and ensure consistency, acting as an automated "first reviewer."
+  **Feature:** Get intelligent, AI-generated feedback on your Pull Requests. `pr-desc` will analyze the code changes and the PR description to provide suggestions for improvements, identify potential issues, and ensure consistency, acting as an automated "first reviewer."
 
-**Value:** Speeds up the code review process, helps maintain code quality, and ensures PRs are well-documented before human review.
+  **Value:** Speeds up the code review process, helps maintain code quality, and ensures PRs are well-documented before human review.
 
-**Command Idea:** `pr-desc review [pr-url | --local]`
+- ### Direct PR Creation
 
-### Direct PR Creation
+  **Feature:** Create new GitHub Pull Requests directly from the `pr-desc` CLI. This command will generate the PR description using AI and then seamlessly create the PR on GitHub, leveraging the `gh` CLI internally, without any manual piping or temporary files.
 
-**Feature:** Create new GitHub Pull Requests directly from the `pr-desc` CLI. This command will generate the PR description using AI and then seamlessly create the PR on GitHub, leveraging the `gh` CLI internally, without any manual piping or temporary files.
+  **Value:** Automates the entire PR creation workflow, from description generation to submission, saving time and reducing manual steps.
 
-**Value:** Automates the entire PR creation workflow, from description generation to submission, saving time and reducing manual steps.
+- ### PR Description Editing
 
-**Command Idea:** `pr-desc create-pr [--base <branch>] [--template <style> | --template-file <path>]`
+  **Feature:** Update the description of an existing GitHub Pull Request using AI-generated content. You'll be able to specify a PR (by number or URL) and have `pr-desc` generate a new description (or refine the existing one) and apply it directly to the PR. This will also leverage the `gh` CLI internally.
 
-### PR Description Editing
-
-**Feature:** Update the description of an existing GitHub Pull Request using AI-generated content. You'll be able to specify a PR (by number or URL) and have `pr-desc` generate a new description (or refine the existing one) and apply it directly to the PR. This will also leverage the `gh` CLI internally.
-
-**Value:** Allows for easy refinement of PR descriptions after initial creation, ensuring they remain accurate and comprehensive as changes evolve.
-
-**Command Idea:** `pr-desc edit-pr <pr-number | pr-url> [--template <style> | --template-file <path>]`
+  **Value:** Allows for easy refinement of PR descriptions after initial creation, ensuring they remain accurate and comprehensive as changes evolve.
