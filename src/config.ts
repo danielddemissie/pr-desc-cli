@@ -26,7 +26,6 @@ export function loadConfig(): Config {
   config();
 
   let userConfig: Config = {};
-
   if (existsSync(CONFIG_FILE)) {
     try {
       const configContent = readFileSync(CONFIG_FILE, "utf-8");

@@ -138,12 +138,8 @@ Fill in the sections of the template using the git changes data.
 
 ${gitDataSection}
 
----
-
 ## Custom PR Template:
 ${customTemplateContent}
-
----
 
 Please generate the PR description by filling the custom template based on the git changes provided.
 ${finalAiInstruction}
@@ -162,27 +158,19 @@ Follow this exact structure:
 # Title
 [Short, clear title summarizing the change in under 10 words.]
 
----
-
 ## Summary of Changes
 [Concise high-level overview of what this PR does, focusing on the end result.]
-
----
 
 ## What Was Changed
 [List the specific code modifications, features added, bugs fixed, or files updated. Use bullet points for clarity.]
 
----
-
 ## Why This Change Was Made
 [Explain the rationale, problem solved, or context from related work.]
 
----
 
 ## Technical Details
 [Include implementation specifics, relevant algorithms, dependencies, DB changes, env vars, or API modifications.]
 
----
 
 ## How to Test
 1. Checkout this branch.
@@ -191,12 +179,9 @@ Follow this exact structure:
 4. Perform **[specific actions]**.
 5. Verify **[expected results]**.
 
----
 
 ## Breaking Changes
 [List any breaking changes or write \`None\`. Include migration steps if applicable.]
-
----
 
 ## Related Issues / References
 [Optional: Link to Jira ticket, GitHub issue, or related PR.]
@@ -213,32 +198,20 @@ Follow this exact structure:
 # Title
 [Short, clear title summarizing the change in under 10 words.]
 
----
-
 ## Summary of Changes
 [Brief high-level overview of what this PR achieves.]
-
----
 
 ## Changes Made
 [Detailed bullet list of modifications, new features, and fixes.]
 
----
-
 ## Technical Details
 [Explain the approach, important design decisions, dependencies, DB changes, env vars, or API changes.]
-
----
 
 ## Testing
 [Steps to test the PR — actions, expected results, and verification points.]
 
----
-
 ## Breaking Changes
 [List any breaking changes or write \`None\`. Include migration instructions if necessary.]
-
----
 
 ## Additional Notes
 [Optional extra context, performance considerations, or known limitations.]
