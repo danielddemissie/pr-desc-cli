@@ -1,25 +1,16 @@
+import chalk from "chalk";
 import { generateText } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
-import type { GitChanges, SupportedProviders } from "./types.js";
-import { getDefaultModel } from "./models.js";
-import { getApiKey } from "./config.js";
-import {
-  ReviewAnalysisEngine,
-  type AnalysisResult,
-} from "./analysis-engine.js";
+import type { GitChanges } from "./types.js";
+import { getAIModel } from "./models.js";
+import { ReviewAnalysisEngine } from "./analysis-engine.js";
 import {
   ReviewOptions,
   ReviewResult,
   ReviewIssue,
   ReviewMetrics,
+  AnalysisResult,
 } from "./types.js";
 
-/**
- * Generate AI-powered code review for the provided git changes.
- * @param changes The git changes to review.
- * @param options The options to customize the review.
- * @returns The generated code review result.
- */
 export async function generatePRReview(
   changes: GitChanges,
   options: ReviewOptions
@@ -49,40 +40,6 @@ export async function generatePRReview(
   return mergeAnalysisResults(aiResult, preAnalysis);
 }
 
-/**
- * Get the AI model for the specified provider and model name.
- */
-function getAIModel(provider: string, modelName?: string) {
-  const defaultModel = getDefaultModel(provider);
-  const supportedProviders: SupportedProviders = {
-    groq: {
-      baseURL: "https://api.groq.com/openai/v1",
-      apiKey: getApiKey("groq"),
-    },
-    deepInfra: {
-      baseURL: "https://api.deepinfra.com/v1/openai",
-      apiKey: getApiKey("deepinfra"),
-    },
-    local: {
-      baseURL: "http://localhost:11434/v1",
-      apiKey: "ollama",
-    },
-  };
-
-  if (!supportedProviders[provider]) {
-    throw new Error(`Unsupported provider: ${provider}`);
-  }
-
-  const { baseURL, apiKey } = supportedProviders[provider];
-  return createOpenAI({
-    baseURL,
-    apiKey,
-  })(modelName || defaultModel);
-}
-
-/**
- * Build the review prompt for the AI model with enhanced context and specificity.
- */
 function buildReviewPrompt(
   changes: GitChanges,
   reviewType: string,
@@ -226,41 +183,20 @@ Respond with a JSON object in this exact format:
 `;
 }
 
-/**
- * Get file type context for better analysis
- */
 function getFileTypeContext(extension: string): string {
   const typeMap: Record<string, string> = {
     js: "JavaScript",
     ts: "TypeScript",
     jsx: "React JSX",
     tsx: "React TypeScript",
-    py: "Python",
-    java: "Java",
-    go: "Go",
-    rs: "Rust",
-    cpp: "C++",
-    c: "C",
-    php: "PHP",
-    rb: "Ruby",
-    sql: "SQL",
-    json: "JSON Config",
-    yaml: "YAML Config",
-    yml: "YAML Config",
-    md: "Markdown",
-    css: "CSS",
-    scss: "SCSS",
-    html: "HTML",
-    dockerfile: "Docker",
-    sh: "Shell Script",
+
+    // only ts, js and react supported
   };
 
   return typeMap[extension] || "Unknown";
 }
 
-/**
- * Get detailed review instructions based on review type
- */
+// Get detailed review instructions based on review type
 function getReviewTypeInstructions(reviewType: string): string {
   const instructions = {
     comprehensive: `
@@ -377,9 +313,7 @@ Focus on identifying potential bugs and correctness issues:
   );
 }
 
-/**
- * Get severity filtering instructions
- */
+//Get severity filtering instructions
 function getSeverityInstructions(severity: string): string {
   const severityMap = {
     all: "Report all issues regardless of severity level.",
@@ -403,9 +337,7 @@ function getSeverityInstructions(severity: string): string {
   );
 }
 
-/**
- * Get contextual guidance based on the changes
- */
+// Get contextual guidance based on the changes
 function getContextualGuidance(changes: GitChanges): string {
   const hasConfigFiles = changes.files.some(
     (f) =>
@@ -464,9 +396,7 @@ function getContextualGuidance(changes: GitChanges): string {
   return guidance;
 }
 
-/**
- * Parse the AI response into a structured ReviewResult with enhanced error handling.
- */
+// Parse the AI response into a structured ReviewResult with enhanced error handling.
 function parseReviewResponse(
   response: string,
   changes: GitChanges
@@ -526,9 +456,7 @@ function parseReviewResponse(
   }
 }
 
-/**
- * Validate and sanitize individual issues
- */
+// Validate and sanitize individual issues
 function validateIssue(issue: any): ReviewIssue {
   return {
     file: issue.file || "unknown",
@@ -551,9 +479,7 @@ function validateIssue(issue: any): ReviewIssue {
   };
 }
 
-/**
- * Calculate metrics from issues and changes
- */
+// Calculate metrics from issues and changes
 function calculateMetrics(issues: any[], changes: GitChanges): ReviewMetrics {
   const criticalIssues = issues.filter((i) => i.severity === "critical").length;
   const securityIssues = issues.filter((i) => i.type === "security").length;
@@ -571,9 +497,7 @@ function calculateMetrics(issues: any[], changes: GitChanges): ReviewMetrics {
   };
 }
 
-/**
- * Merge AI analysis results with pre-analysis findings
- */
+// Merge AI analysis results with pre-analysis findings
 function mergeAnalysisResults(
   aiResult: ReviewResult,
   preAnalysis: AnalysisResult
@@ -643,4 +567,108 @@ function mergeAnalysisResults(
     score: adjustedScore,
     metrics: enhancedMetrics,
   };
+}
+
+export function displayReviewResults(
+  review: any,
+  scoreThreshold?: { pass: number; warn: number; fail: number }
+) {
+  console.log("\n" + chalk.blue("═".repeat(60)));
+  console.log(chalk.bold.cyan("🔍 AI Code Review Results"));
+  console.log(chalk.blue("═".repeat(60)));
+
+  // Overall score with custom thresholds
+  const thresholds = scoreThreshold || { pass: 8, warn: 6, fail: 4 };
+  const scoreColor =
+    review.score >= thresholds.pass
+      ? chalk.green
+      : review.score >= thresholds.warn
+      ? chalk.yellow
+      : chalk.red;
+
+  console.log(
+    `\n${chalk.bold("Overall Score:")} ${scoreColor(review.score + "/10")}`
+  );
+
+  // Summary
+  console.log(`\n${chalk.bold("Summary:")}`);
+  console.log(chalk.gray(review.summary));
+
+  // Issues
+  if (review.issues.length > 0) {
+    console.log(
+      `\n${chalk.bold("Issues Found:")} ${chalk.red(review.issues.length)}`
+    );
+
+    review.issues.forEach((issue: any, index: number) => {
+      const severityColor =
+        {
+          critical: chalk.red.bold,
+          high: chalk.red,
+          medium: chalk.yellow,
+          low: chalk.gray,
+        }[issue.severity as "critical" | "high" | "medium" | "low"] ||
+        chalk.gray;
+
+      const typeIcon =
+        (
+          {
+            security: "🔒",
+            performance: "⚡",
+            bug: "🐛",
+            style: "🎨",
+            maintainability: "🔧",
+          } as Record<string, string>
+        )[issue.type] || "⚠️";
+
+      console.log(
+        `\n${index + 1}. ${typeIcon} ${severityColor(
+          issue.severity.toUpperCase()
+        )} - ${issue.type}`
+      );
+      console.log(
+        `   ${chalk.bold("File:")} ${issue.file}${
+          issue.line ? `:${issue.line}` : ""
+        }`
+      );
+      console.log(`   ${chalk.bold("Issue:")} ${issue.message}`);
+      if (issue.suggestion) {
+        console.log(
+          `   ${chalk.bold("Fix:")} ${chalk.green(issue.suggestion)}`
+        );
+      }
+    });
+  } else {
+    console.log(`\n${chalk.green("✅ No issues found!")}`);
+  }
+
+  // Suggestions
+  if (review.suggestions.length > 0) {
+    console.log(`\n${chalk.bold("General Suggestions:")}`);
+    review.suggestions.forEach((suggestion: string, index: number) => {
+      console.log(`${index + 1}. ${chalk.cyan(suggestion)}`);
+    });
+  }
+
+  console.log("\n" + chalk.blue("═".repeat(60)));
+
+  // Action recommendations with custom thresholds
+  if (review.score >= thresholds.pass) {
+    console.log(chalk.green("🚀 Code looks great! Ready to create PR."));
+  } else if (review.score >= thresholds.warn) {
+    console.log(
+      chalk.yellow("⚠️  Consider addressing issues before creating PR.")
+    );
+  } else {
+    console.log(chalk.red("🛑 Please fix critical issues before proceeding."));
+  }
+
+  console.log(
+    chalk.gray(
+      "\nRun 'pr-desc generate' when ready to create your PR description."
+    )
+  );
+  console.log(
+    chalk.gray("Use 'pr-desc profiles list' to see available review profiles.")
+  );
 }

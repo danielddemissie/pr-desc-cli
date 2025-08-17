@@ -87,7 +87,7 @@ function getDefaultReviewProfiles(): ReviewProfile[] {
       description: "Comprehensive security review with critical issues only",
       reviewType: "security",
       severity: "critical",
-      filePatterns: ["*.ts", "*.js", "*.tsx", "*.jsx", "*.py", "*.java"],
+      filePatterns: ["*.ts", "*.js", "*.tsx", "*.jsx"],
     },
     {
       name: "performance-check",
@@ -124,7 +124,7 @@ function getDefaultReviewProfiles(): ReviewProfile[] {
       description: "Focus on potential bugs and logic errors",
       reviewType: "bugs",
       severity: "high",
-      filePatterns: ["*.ts", "*.js", "*.tsx", "*.jsx", "*.py", "*.java"],
+      filePatterns: ["*.ts", "*.js", "*.tsx", "*.jsx"],
     },
   ];
 }

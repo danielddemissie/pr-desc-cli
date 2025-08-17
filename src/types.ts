@@ -119,7 +119,7 @@ export interface ReviewProfile {
   filePatterns?: string[];
 }
 
-export type CustomRuleType =
+export type PatterTypes =
   | "security"
   | "performance"
   | "bug"
@@ -131,7 +131,7 @@ export type CustomRuleSeverity = "low" | "medium" | "high" | "critical";
 export interface CustomRule {
   name: string;
   pattern: string;
-  type: CustomRuleType;
+  type: PatterTypes;
   severity: CustomRuleSeverity;
   message: string;
   suggestion: string;
@@ -157,8 +157,8 @@ export interface ReviewResult {
 export interface ReviewIssue {
   file: string;
   line?: number;
-  type: "security" | "performance" | "bug" | "style" | "maintainability";
-  severity: "low" | "medium" | "high" | "critical";
+  type: PatterTypes;
+  severity: CustomRuleSeverity;
   message: string;
   suggestion?: string;
   codeSnippet?: string;
@@ -171,4 +171,28 @@ export interface ReviewMetrics {
   criticalIssues: number;
   securityIssues: number;
   performanceIssues: number;
+}
+
+export interface AnalysisResult {
+  patterns: DetectedPattern[];
+  metrics: CodeMetrics;
+  riskScore: number;
+  recommendations: string[];
+}
+
+export interface DetectedPattern {
+  type: PatterTypes;
+  severity: CustomRuleSeverity;
+  pattern: string;
+  files: string[];
+  description: string;
+  suggestion: string;
+}
+
+export interface CodeMetrics {
+  complexity: number;
+  testCoverage: number;
+  duplicateCode: number;
+  technicalDebt: number;
+  securityRisk: number;
 }

@@ -10,7 +10,7 @@ import { input, select, password, confirm } from "@inquirer/prompts";
 import { join, dirname } from "path";
 
 import { generatePRDescription } from "./pr-generator.js";
-import { generatePRReview } from "./pr-reviewer.js";
+import { generatePRReview, displayReviewResults } from "./pr-reviewer.js";
 import { getGitChanges } from "./git-utils.js";
 import { getSupportedModels, SUPPORTED_MODELS } from "./models.js";
 import {
@@ -674,112 +674,5 @@ program
         process.exit(1);
     }
   });
-
-/**
- * Display code review results in a formatted way
- */
-function displayReviewResults(
-  review: any,
-  scoreThreshold?: { pass: number; warn: number; fail: number }
-) {
-  console.log("\n" + chalk.blue("═".repeat(60)));
-  console.log(chalk.bold.cyan("🔍 AI Code Review Results"));
-  console.log(chalk.blue("═".repeat(60)));
-
-  // Overall score with custom thresholds
-  const thresholds = scoreThreshold || { pass: 8, warn: 6, fail: 4 };
-  const scoreColor =
-    review.score >= thresholds.pass
-      ? chalk.green
-      : review.score >= thresholds.warn
-      ? chalk.yellow
-      : chalk.red;
-
-  console.log(
-    `\n${chalk.bold("Overall Score:")} ${scoreColor(review.score + "/10")}`
-  );
-
-  // Summary
-  console.log(`\n${chalk.bold("Summary:")}`);
-  console.log(chalk.gray(review.summary));
-
-  // Issues
-  if (review.issues.length > 0) {
-    console.log(
-      `\n${chalk.bold("Issues Found:")} ${chalk.red(review.issues.length)}`
-    );
-
-    review.issues.forEach((issue: any, index: number) => {
-      const severityColor =
-        {
-          critical: chalk.red.bold,
-          high: chalk.red,
-          medium: chalk.yellow,
-          low: chalk.gray,
-        }[issue.severity as "critical" | "high" | "medium" | "low"] ||
-        chalk.gray;
-
-      const typeIcon =
-        (
-          {
-            security: "🔒",
-            performance: "⚡",
-            bug: "🐛",
-            style: "🎨",
-            maintainability: "🔧",
-          } as Record<string, string>
-        )[issue.type] || "⚠️";
-
-      console.log(
-        `\n${index + 1}. ${typeIcon} ${severityColor(
-          issue.severity.toUpperCase()
-        )} - ${issue.type}`
-      );
-      console.log(
-        `   ${chalk.bold("File:")} ${issue.file}${
-          issue.line ? `:${issue.line}` : ""
-        }`
-      );
-      console.log(`   ${chalk.bold("Issue:")} ${issue.message}`);
-      if (issue.suggestion) {
-        console.log(
-          `   ${chalk.bold("Fix:")} ${chalk.green(issue.suggestion)}`
-        );
-      }
-    });
-  } else {
-    console.log(`\n${chalk.green("✅ No issues found!")}`);
-  }
-
-  // Suggestions
-  if (review.suggestions.length > 0) {
-    console.log(`\n${chalk.bold("General Suggestions:")}`);
-    review.suggestions.forEach((suggestion: string, index: number) => {
-      console.log(`${index + 1}. ${chalk.cyan(suggestion)}`);
-    });
-  }
-
-  console.log("\n" + chalk.blue("═".repeat(60)));
-
-  // Action recommendations with custom thresholds
-  if (review.score >= thresholds.pass) {
-    console.log(chalk.green("🚀 Code looks great! Ready to create PR."));
-  } else if (review.score >= thresholds.warn) {
-    console.log(
-      chalk.yellow("⚠️  Consider addressing issues before creating PR.")
-    );
-  } else {
-    console.log(chalk.red("🛑 Please fix critical issues before proceeding."));
-  }
-
-  console.log(
-    chalk.gray(
-      "\nRun 'pr-desc generate' when ready to create your PR description."
-    )
-  );
-  console.log(
-    chalk.gray("Use 'pr-desc profiles list' to see available review profiles.")
-  );
-}
 
 program.parse();

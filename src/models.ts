@@ -1,3 +1,7 @@
+import { createOpenAI } from "@ai-sdk/openai";
+import { getApiKey } from "./config.js";
+import type { SupportedProviders } from "./types.js";
+
 export const SUPPORTED_MODELS = {
   groq: {
     default: "llama-3.1-8b-instant",
@@ -40,4 +44,33 @@ export function getSupportedModels(provider: string): string[] {
   }
 
   return providerModels.options.slice();
+}
+
+// Get the AI model for the specified provider and model name.
+export function getAIModel(provider: string, modelName?: string) {
+  const defaultModel = getDefaultModel(provider);
+  const supportedProviders: SupportedProviders = {
+    groq: {
+      baseURL: "https://api.groq.com/openai/v1",
+      apiKey: getApiKey("groq"),
+    },
+    deepInfra: {
+      baseURL: "https://api.deepinfra.com/v1/openai",
+      apiKey: getApiKey("deepinfra"),
+    },
+    local: {
+      baseURL: "http://localhost:11434/v1",
+      apiKey: "ollama",
+    },
+  };
+
+  if (!supportedProviders[provider]) {
+    throw new Error(`Unsupported provider: ${provider}`);
+  }
+
+  const { baseURL, apiKey } = supportedProviders[provider];
+  return createOpenAI({
+    baseURL,
+    apiKey,
+  })(modelName || defaultModel);
 }

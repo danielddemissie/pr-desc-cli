@@ -1,19 +1,7 @@
 import { generateText } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
-import type {
-  GitChanges,
-  GenerateOptions,
-  SupportedProviders,
-} from "./types.js";
-import { getDefaultModel } from "./models.js";
-import { getApiKey } from "./config.js";
+import type { GitChanges, GenerateOptions } from "./types.js";
+import { getAIModel } from "./models.js";
 
-/**
- * Generate a Pull Request description based on the provided git changes and options.
- * @param changes The git changes to include in the PR description.
- * @param options The options to customize the PR description generation.
- * @returns The generated PR description.
- */
 export async function generatePRDescription(
   changes: GitChanges,
   options: GenerateOptions
@@ -37,50 +25,6 @@ export async function generatePRDescription(
   return text;
 }
 
-/**
- * Get the AI model for the specified provider and model name.
- * @param provider The name of the AI provider.
- * @param modelName The name of the model to use (optional).
- * @returns The AI model instance.
- */
-function getAIModel(provider: string, modelName?: string) {
-  const defaultModel = getDefaultModel(provider);
-  const supportedProviders: SupportedProviders = {
-    groq: {
-      baseURL: "https://api.groq.com/openai/v1",
-      apiKey: getApiKey("groq"),
-    },
-    deepInfra: {
-      baseURL: "https://api.deepinfra.com/v1/openai",
-      apiKey: getApiKey("deepinfra"),
-    },
-    local: {
-      baseURL: "http://localhost:11434/v1",
-      apiKey: "ollama", // NOTE: just for local development
-    },
-  };
-
-  // handle unsupported providers
-  if (!supportedProviders[provider]) {
-    throw new Error(`Unsupported provider: ${provider}`);
-  }
-
-  const { baseURL, apiKey } = supportedProviders[provider];
-  return createOpenAI({
-    baseURL,
-    apiKey,
-  })(modelName || defaultModel);
-}
-
-/**
- * Build the prompt for the AI model.
- * @param changes The git changes to include in the prompt.
- * @param template The template to use for the prompt.
- * @param customTemplateContent Custom content to include in the prompt.
- * @param maxFiles The maximum number of files to include in the prompt.
- * @param maxDiffLines The maximum number of diff lines to include in the prompt.
- * @returns The constructed prompt string.
- */
 function buildPrompt(
   changes: GitChanges,
   template: string,

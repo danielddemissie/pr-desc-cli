@@ -1,32 +1,12 @@
-import type { GitChanges, FileChange } from "./types.js";
+import type {
+  GitChanges,
+  FileChange,
+  AnalysisResult,
+  DetectedPattern,
+  CodeMetrics,
+} from "./types.js";
+import { patternsInfo, reviewPatters } from "./utils.js";
 
-export interface AnalysisResult {
-  patterns: DetectedPattern[];
-  metrics: CodeMetrics;
-  riskScore: number;
-  recommendations: string[];
-}
-
-export interface DetectedPattern {
-  type: "security" | "performance" | "bug" | "style" | "maintainability";
-  severity: "low" | "medium" | "high" | "critical";
-  pattern: string;
-  files: string[];
-  description: string;
-  suggestion: string;
-}
-
-export interface CodeMetrics {
-  complexity: number;
-  testCoverage: number;
-  duplicateCode: number;
-  technicalDebt: number;
-  securityRisk: number;
-}
-
-/**
- * Advanced code analysis engine that performs pattern detection and risk assessment
- */
 export class ReviewAnalysisEngine {
   private securityPatterns!: RegExp[];
   private performancePatterns!: RegExp[];
@@ -37,9 +17,7 @@ export class ReviewAnalysisEngine {
     this.initializePatterns();
   }
 
-  /**
-   * Perform comprehensive analysis of git changes
-   */
+  // Perform comprehensive analysis of git changes
   async analyzeChanges(changes: GitChanges): Promise<AnalysisResult> {
     const patterns = this.detectPatterns(changes);
     const metrics = this.calculateMetrics(changes);
@@ -54,63 +32,15 @@ export class ReviewAnalysisEngine {
     };
   }
 
-  /**
-   * Initialize pattern detection rules
-   */
+  // Initialize pattern detection rules
   private initializePatterns(): void {
-    // Security vulnerability patterns
-    this.securityPatterns = [
-      /eval\s*\(/gi, // eval() usage
-      /innerHTML\s*=/gi, // innerHTML assignment (XSS risk)
-      /document\.write\s*\(/gi, // document.write (XSS risk)
-      /\$\{[^}]*\}/g, // Template literal injection risk
-      /SELECT\s+.*\s+FROM\s+.*\s+WHERE\s+.*\+/gi, // SQL injection pattern
-      /password\s*=\s*['"]/gi, // Hardcoded passwords
-      /api[_-]?key\s*=\s*['"]/gi, // Hardcoded API keys
-      /secret\s*=\s*['"]/gi, // Hardcoded secrets
-      /token\s*=\s*['"]/gi, // Hardcoded tokens
-      /crypto\.createHash\s*\(\s*['"]md5['"]/gi, // Weak hashing
-      /Math\.random\s*$$\s*$$/gi, // Insecure random for security
-    ];
-
-    // Performance issue patterns
-    this.performancePatterns = [
-      /for\s*$$[^)]*$$\s*{[^}]*for\s*\(/gi, // Nested loops
-      /while\s*$$[^)]*$$\s*{[^}]*while\s*\(/gi, // Nested while loops
-      /\.map\s*$$[^)]*$$\.map\s*\(/gi, // Chained array operations
-      /JSON\.parse\s*\(\s*JSON\.stringify/gi, // Inefficient deep clone
-      /new\s+RegExp\s*\(/gi, // RegExp in loops (should be outside)
-      /console\.log\s*\(/gi, // Console logs in production
-      /debugger\s*;/gi, // Debugger statements
-      /alert\s*\(/gi, // Alert statements
-    ];
-
-    // Bug-prone patterns
-    this.bugPatterns = [
-      /==\s*null/gi, // Should use === null
-      /!=\s*null/gi, // Should use !== null
-      /==\s*undefined/gi, // Should use === undefined
-      /!=\s*undefined/gi, // Should use !== undefined
-      /\+\+\w+\[/gi, // Increment with array access
-      /\w+\[\+\+/gi, // Array access with increment
-      /catch\s*$$[^)]*$$\s*{\s*}/gi, // Empty catch blocks
-      /if\s*$$[^)]*$$\s*;\s*$/gm, // Empty if statements
-      /else\s*;\s*$/gm, // Empty else statements
-    ];
-
-    // Style and maintainability patterns
-    this.stylePatterns = [
-      /function\s+\w+\s*$$[^)]*$$\s*{[\s\S]{500,}?}/gi, // Large functions
-      /class\s+\w+\s*{[\s\S]{1000,}?}/gi, // Large classes
-      /\/\*[\s\S]*?\*\//g, // Block comments (check for TODO/FIXME)
-      /\/\/\s*(TODO|FIXME|HACK|XXX)/gi, // Technical debt comments
-      /var\s+/gi, // var usage (should use let/const)
-    ];
+    this.securityPatterns = reviewPatters.securityPatterns;
+    this.performancePatterns = reviewPatters.performancePatterns;
+    this.stylePatterns = reviewPatters.stylePatterns;
+    this.bugPatterns = reviewPatters.bugPatterns;
   }
 
-  /**
-   * Detect patterns in code changes
-   */
+  //Detect patterns in code changes
   private detectPatterns(changes: GitChanges): DetectedPattern[] {
     const patterns: DetectedPattern[] = [];
 
@@ -176,9 +106,7 @@ export class ReviewAnalysisEngine {
     return patterns;
   }
 
-  /**
-   * Check specific patterns in code
-   */
+  //Check specific patterns in code
   private checkPatterns(
     code: string,
     filePath: string,
@@ -219,28 +147,16 @@ export class ReviewAnalysisEngine {
     return detected;
   }
 
-  /**
-   * Analyze file-specific patterns
-   */
+  // Analyze file-specific patterns
   private analyzeFileSpecific(file: FileChange): DetectedPattern[] {
     const patterns: DetectedPattern[] = [];
     const extension = file.path.split(".").pop()?.toLowerCase();
 
     if (!file.patch) return patterns;
 
-    // TypeScript/JavaScript specific checks
     if (["ts", "tsx", "js", "jsx"].includes(extension || "")) {
+      // I needed TypeScript/JavaScript specific checks only, you can add more Language as needed
       patterns.push(...this.analyzeJavaScriptFile(file));
-    }
-
-    // Python specific checks
-    if (extension === "py") {
-      patterns.push(...this.analyzePythonFile(file));
-    }
-
-    // SQL specific checks
-    if (extension === "sql") {
-      patterns.push(...this.analyzeSQLFile(file));
     }
 
     // Configuration file checks
@@ -251,9 +167,7 @@ export class ReviewAnalysisEngine {
     return patterns;
   }
 
-  /**
-   * JavaScript/TypeScript specific analysis
-   */
+  // JavaScript/TypeScript specific analysis/
   private analyzeJavaScriptFile(file: FileChange): DetectedPattern[] {
     const patterns: DetectedPattern[] = [];
     const addedCode =
@@ -294,9 +208,7 @@ export class ReviewAnalysisEngine {
     return patterns;
   }
 
-  /**
-   * React-specific analysis
-   */
+  // React-specific analysis
   private analyzeReactFile(
     file: FileChange,
     addedCode: string
@@ -330,61 +242,8 @@ export class ReviewAnalysisEngine {
     return patterns;
   }
 
-  /**
-   * Python-specific analysis
-   */
-  private analyzePythonFile(file: FileChange): DetectedPattern[] {
-    const patterns: DetectedPattern[] = [];
-    const addedCode =
-      file.patch
-        ?.split("\n")
-        .filter((line) => line.startsWith("+"))
-        .join("\n") || "";
+  // Configuration file analysis
 
-    // Check for bare except clauses
-    if (addedCode.includes("except:")) {
-      patterns.push({
-        type: "bug",
-        severity: "medium",
-        pattern: "bare-except",
-        files: [file.path],
-        description: "Bare except clause catches all exceptions",
-        suggestion: "Specify exception types or use Exception as base",
-      });
-    }
-
-    return patterns;
-  }
-
-  /**
-   * SQL-specific analysis
-   */
-  private analyzeSQLFile(file: FileChange): DetectedPattern[] {
-    const patterns: DetectedPattern[] = [];
-    const addedCode =
-      file.patch
-        ?.split("\n")
-        .filter((line) => line.startsWith("+"))
-        .join("\n") || "";
-
-    // Check for SELECT *
-    if (addedCode.match(/SELECT\s+\*/gi)) {
-      patterns.push({
-        type: "performance",
-        severity: "medium",
-        pattern: "select-star",
-        files: [file.path],
-        description: "SELECT * can impact performance",
-        suggestion: "Specify only needed columns in SELECT statements",
-      });
-    }
-
-    return patterns;
-  }
-
-  /**
-   * Configuration file analysis
-   */
   private analyzeConfigFile(file: FileChange): DetectedPattern[] {
     const patterns: DetectedPattern[] = [];
     const addedCode =
@@ -408,9 +267,7 @@ export class ReviewAnalysisEngine {
     return patterns;
   }
 
-  /**
-   * Calculate code metrics
-   */
+  // Calculate code metrics
   private calculateMetrics(changes: GitChanges): CodeMetrics {
     let complexity = 0;
     let testCoverage = 0;
@@ -449,9 +306,7 @@ export class ReviewAnalysisEngine {
     };
   }
 
-  /**
-   * Calculate cyclomatic complexity (simplified)
-   */
+  // Calculate cyclomatic complexity (simplified)
   private calculateComplexity(lines: string[]): number {
     let complexity = 1; // Base complexity
 
@@ -469,16 +324,14 @@ export class ReviewAnalysisEngine {
     return complexity;
   }
 
-  /**
-   * Calculate technical debt score
-   */
+  // Calculate technical debt score
   private calculateTechnicalDebt(lines: string[]): number {
     let debt = 0;
 
     for (const line of lines) {
       const cleanLine = line.substring(1).trim();
 
-      // TODO/FIXME comments
+      // any TODO or FIXME comments
       if (cleanLine.match(/\b(TODO|FIXME|HACK|XXX)\b/gi)) {
         debt += 5;
       }
@@ -497,9 +350,7 @@ export class ReviewAnalysisEngine {
     return debt;
   }
 
-  /**
-   * Calculate security risk score
-   */
+  // Calculate security risk score
   private calculateSecurityRisk(lines: string[]): number {
     let risk = 0;
 
@@ -525,9 +376,6 @@ export class ReviewAnalysisEngine {
     return risk;
   }
 
-  /**
-   * Calculate overall risk score
-   */
   private calculateRiskScore(
     patterns: DetectedPattern[],
     metrics: CodeMetrics
@@ -560,9 +408,7 @@ export class ReviewAnalysisEngine {
     return Math.min(100, Math.round(score));
   }
 
-  /**
-   * Generate recommendations based on analysis
-   */
+  // Generate recommendations based on analysis
   private generateRecommendations(
     patterns: DetectedPattern[],
     metrics: CodeMetrics
@@ -616,117 +462,20 @@ export class ReviewAnalysisEngine {
     return recommendations;
   }
 
-  /**
-   * Get security pattern information
-   */
-  private getSecurityPatternInfo(): Record<
-    string,
-    {
-      severity: DetectedPattern["severity"];
-      description: string;
-      suggestion: string;
-    }
-  > {
-    return {
-      "eval\\s*\\(": {
-        severity: "critical",
-        description: "Use of eval() can lead to code injection vulnerabilities",
-        suggestion:
-          "Avoid eval() and use safer alternatives like JSON.parse() for data",
-      },
-      "innerHTML\\s*=": {
-        severity: "high",
-        description:
-          "Direct innerHTML assignment can lead to XSS vulnerabilities",
-        suggestion:
-          "Use textContent or sanitize HTML content before assignment",
-      },
-      "password\\s*=\\s*['\"]": {
-        severity: "critical",
-        description: "Hardcoded password detected in source code",
-        suggestion:
-          "Use environment variables or secure configuration for passwords",
-      },
-    };
+  // load pattern info
+  private getSecurityPatternInfo() {
+    return patternsInfo.security;
   }
 
-  /**
-   * Get performance pattern information
-   */
-  private getPerformancePatternInfo(): Record<
-    string,
-    {
-      severity: DetectedPattern["severity"];
-      description: string;
-      suggestion: string;
-    }
-  > {
-    return {
-      "for\\s*$$[^)]*$$\\s*{[^}]*for\\s*\\(": {
-        severity: "medium",
-        description:
-          "Nested loops can cause performance issues with large datasets",
-        suggestion:
-          "Consider optimizing algorithm or using more efficient data structures",
-      },
-      "console\\.log\\s*\\(": {
-        severity: "low",
-        description: "Console logs should be removed from production code",
-        suggestion:
-          "Remove console.log statements or use proper logging framework",
-      },
-    };
+  private getPerformancePatternInfo() {
+    return patternsInfo.performance;
   }
 
-  /**
-   * Get bug pattern information
-   */
-  private getBugPatternInfo(): Record<
-    string,
-    {
-      severity: DetectedPattern["severity"];
-      description: string;
-      suggestion: string;
-    }
-  > {
-    return {
-      "==\\s*null": {
-        severity: "medium",
-        description: "Loose equality with null can cause unexpected behavior",
-        suggestion: "Use strict equality (===) for null checks",
-      },
-      "catch\\s*$$[^)]*$$\\s*{\\s*}": {
-        severity: "high",
-        description:
-          "Empty catch blocks hide errors and make debugging difficult",
-        suggestion: "Add proper error handling or at least log the error",
-      },
-    };
+  private getBugPatternInfo() {
+    return patternsInfo.bug;
   }
 
-  /**
-   * Get style pattern information
-   */
-  private getStylePatternInfo(): Record<
-    string,
-    {
-      severity: DetectedPattern["severity"];
-      description: string;
-      suggestion: string;
-    }
-  > {
-    return {
-      "var\\s+": {
-        severity: "low",
-        description: "var has function scope and can cause confusion",
-        suggestion: "Use let or const for block-scoped variables",
-      },
-      "\\/\\/\\s*(TODO|FIXME|HACK|XXX)": {
-        severity: "low",
-        description: "Technical debt comment indicates incomplete work",
-        suggestion:
-          "Address the TODO/FIXME or create a proper issue to track it",
-      },
-    };
+  private getStylePatternInfo() {
+    return patternsInfo.style;
   }
 }
