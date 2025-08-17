@@ -64,7 +64,7 @@ pr-desc config set <provider> <api-key>
 
 ### Option 2: Use Local Models with Ollama
 
-    For a good balance of performance and resource usage, I recommend using `llama3.1` (the 8B version, Weights approx 4.7GB). It's light and it's highly capable for instruction-following and general text generation, making it ideal for PR descriptions generation.
+    For a good balance of performance and resource usage, I recommend using `llama3.1` (the 8B version, Weights approx 4.9GB). It's light and it's highly capable for instruction-following and general text generation, making it ideal for PR descriptions generation.
 
 **Setup Steps:**
 
