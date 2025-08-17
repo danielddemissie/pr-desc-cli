@@ -46,17 +46,12 @@ program
   .command("generate")
   .alias("gen")
   .description("Generate PR description from git changes")
-  .option("-b, --base <branch>", "Base branch to compare against", "main")
-  .option(
-    "-p, --provider <provider>",
-    "AI provider (groq, deepinfra, local)",
-    "groq"
-  )
+  .option("-b, --base <branch>", "Base branch to compare against")
+  .option("-p, --provider <provider>", "AI provider (groq, deepinfra, local)")
   .option("-m, --model <model>", "AI model to use")
   .option(
     "--template <template>",
-    "PR template style (standard, detailed, minimal)",
-    "standard"
+    "PR template style (standard, detailed, minimal)"
   )
   .option("--template-file <path>", "Path to a custom Markdown template file") // user-custom template
   .option("--max-files <number>", "Maximum number of files to analyze", "20")
@@ -69,6 +64,21 @@ program
     const spinner = ora("Analyzing git changes...").start();
 
     try {
+      // load default config
+      const config = loadConfig();
+      if (!config.defaultProvider) config.defaultProvider = "groq";
+      if (!config.defaultTemplate) config.defaultTemplate = "standard";
+      if (!config.defaultBaseBranch) config.defaultBaseBranch = "main";
+
+      // set options
+      options.provider = options.provider || config.defaultProvider;
+      options.template = options.template || config.defaultTemplate;
+      options.base = options.base || config.defaultBaseBranch;
+      options.model =
+        options.model ||
+        SUPPORTED_MODELS[options.provider as keyof typeof SUPPORTED_MODELS]
+          .default;
+
       const changes = await getGitChanges(
         options.base,
         Number.parseInt(options.maxFiles)
