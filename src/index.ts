@@ -6,7 +6,7 @@ import ora from "ora";
 import { config } from "dotenv";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
-import { input, select, password } from "@inquirer/prompts";
+import { input, select, password, confirm } from "@inquirer/prompts";
 import { join, dirname } from "path";
 
 import { generatePRDescription } from "./pr-generator.js";
@@ -16,14 +16,13 @@ import {
   getPrForCurrentBranch,
   isGhInstalled,
   updatePr,
+  pushCurrentBranch,
 } from "./git-utils.js";
-import { config } from "dotenv";
 import { getSupportedModels, SUPPORTED_MODELS } from "./models.js";
 import { loadConfig, setApiKey, getApiKey, saveConfig } from "./config.js";
-import { readFileSync } from "fs";
-import { input, select, password, confirm } from "@inquirer/prompts";
 import { maskApiKey } from "./utils.js";
 import { PackageJson } from "./types.js";
+import { GhUncommittedChangesError, GhNeedsPushError } from "./types.js";
 
 config();
 
@@ -192,9 +191,55 @@ program
               `Successfully updated PR #${existingPr.number}: ${existingPr.url}`
             );
           } else {
-            spinner.start("Creating PR...");
-            const prUrl = await createPr(title, description, options.base);
-            spinner.succeed(`Successfully created PR: ${prUrl}`);
+            while (true) {
+              spinner.start("Creating PR...");
+
+              try {
+                const response = await createPr(description);
+                spinner.succeed(`Successfully created PR: ${response}`);
+                break;
+              } catch (error) {
+                if (error instanceof GhNeedsPushError) {
+                  spinner.warn("Your branch is not pushed to origin.");
+                  const pushCB = await confirm({
+                    message: `Would you like to push branch '${changes.currentBranch}' to origin?`,
+                    default: true,
+                  });
+
+                  if (pushCB) {
+                    spinner.start("Pushing branch to origin...");
+                    try {
+                      await pushCurrentBranch(changes.currentBranch);
+                      spinner.succeed(
+                        "Successfully pushed to origin! Retrying PR creation..."
+                      );
+                    } catch (pushError) {
+                      spinner.fail(
+                        `Failed to push branch: ${
+                          pushError instanceof Error
+                            ? pushError.message
+                            : pushError
+                        }`
+                      );
+                      break;
+                    }
+                  } else {
+                    spinner.info("PR creation cancelled.");
+                    break;
+                  }
+                } else if (error instanceof GhUncommittedChangesError) {
+                  spinner.fail(error.message);
+                  break;
+                } else {
+                  spinner.fail(
+                    `PR creation failed: ${
+                      error instanceof Error ? error.message : error
+                    }`
+                  );
+                  break;
+                }
+              }
+            }
           }
         }
       } else if (options.dryRun) {

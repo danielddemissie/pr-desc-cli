@@ -77,3 +77,26 @@ export interface ProviderConfig {
 export interface SupportedProviders {
   [key: string]: ProviderConfig;
 }
+
+export class GhError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "GhError";
+  }
+}
+
+export class GhUncommittedChangesError extends GhError {
+  constructor() {
+    super(
+      "You have uncommitted changes. Please commit or stash before creating a PR."
+    );
+    this.name = "GhUncommittedChangesError";
+  }
+}
+
+export class GhNeedsPushError extends GhError {
+  constructor() {
+    super("You must push the current branch to a remote before creating a PR.");
+    this.name = "GhNeedsPushError";
+  }
+}

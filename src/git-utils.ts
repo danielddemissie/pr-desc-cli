@@ -7,6 +7,11 @@ import type {
   CommitInfo,
   FileStatus,
 } from "./types.ts";
+import {
+  GhError,
+  GhUncommittedChangesError,
+  GhNeedsPushError,
+} from "./types.js";
 
 const git = simpleGit();
 
@@ -145,21 +150,8 @@ export async function getPrForCurrentBranch(
   }
 }
 
-export async function createPr(
-  title: string,
-  body: string,
-  baseBranch: string
-): Promise<string> {
-  const args = [
-    "pr",
-    "create",
-    "--base",
-    baseBranch,
-    "--title",
-    title,
-    "--body-file",
-    "-",
-  ];
+export async function createPr(body: string): Promise<string> {
+  const args = ["pr", "create", "--fill", "--body-file", "-"];
   return runGhCommand(args, body);
 }
 
@@ -191,7 +183,13 @@ function runGhCommand(args: string[], body?: string): Promise<string> {
       if (code === 0) {
         resolve(stdout.trim());
       } else {
-        reject(new Error(`gh command failed with code ${code}: ${stderr}`));
+        if (stderr.includes("uncommitted changes")) {
+          reject(new GhUncommittedChangesError());
+        } else if (stderr.includes("must first push the current branch")) {
+          reject(new GhNeedsPushError());
+        } else {
+          reject(new GhError(`gh command failed with code ${code}: ${stderr}`));
+        }
       }
     });
 
@@ -199,4 +197,45 @@ function runGhCommand(args: string[], body?: string): Promise<string> {
       reject(err);
     });
   });
+}
+
+function runGitCommand(args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const git = spawn("git", args);
+
+    let stdout = "";
+    let stderr = "";
+
+    git.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    git.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    git.on("close", (code) => {
+      if (code === 0) {
+        resolve(stdout.trim());
+      } else {
+        reject(new Error(`git command failed with code ${code}: ${stderr}`));
+      }
+    });
+
+    git.on("error", (err) => {
+      reject(err);
+    });
+  });
+}
+
+export async function pushCurrentBranch(branchName: string): Promise<void> {
+  try {
+    await runGitCommand(["push", "--set-upstream", "origin", branchName]);
+  } catch (error) {
+    throw new Error(
+      `Failed to push current branch '${branchName}': ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+  }
 }
