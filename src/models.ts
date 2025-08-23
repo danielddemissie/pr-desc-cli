@@ -4,34 +4,28 @@ import type { SupportedProviders } from "./types.js";
 
 export const SUPPORTED_MODELS = {
   groq: {
-    default: "claude-3.5-sonnet",
+    default: "llama-3.3-70b-versatile",
     options: [
-      "claude-3.5-sonnet",
-      "llama-3.1-70b-versatile",
       "llama-3.3-70b-versatile",
-      "mixtral-8x22b-instruct",
-      "gemma2-27b-it",
-      "deepseek-v3",
-    ],
-  },
-  deepinfra: {
-    default: "anthropic/claude-3-5-sonnet",
-    options: [
-      "anthropic/claude-3-5-sonnet",
-      "openai/gpt-4o",
-      "anthropic/claude-3-opus",
-      "meta-llama/Llama-3.3-70B-Instruct",
-      "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-      "mistralai/Mixtral-8x22B-Instruct-v0.1",
-      "deepseek-ai/DeepSeek-V3",
-      "openai/gpt-4-turbo",
+      "llama-3.1-8b-instant",
+      "llama3-70b-8192",
+      "llama3-8b-8192",
+      "meta-llama/llama-4-maverick-17b-128e-instruct",
+      "qwen/qwen3-32b",
+      "gemma2-9b-it",
+      "deepseek-r1-distill-llama-70b",
+      "openai/gpt-oss-120b",
+      "openai/gpt-oss-20b",
+      "compound-beta-mini",
+      "compound-beta",
     ],
   },
   local: {
-    default: "llama3.1:70b",
+    default: "llama3.1",
     options: [
       "llama3.1:70b",
-      "codegemma:2b", // An excellent, lightweight option for fast PR descriptions
+      "llama3.1",
+      "codegemma:2b",
       "phi3:3.8b-mini-4k-instruct",
       "qwen2-coder:32b",
       "mixtral:8x22b",
@@ -62,17 +56,69 @@ export function getSupportedModels(provider: string): string[] {
   return providerModels.options.slice();
 }
 
-// Get the AI model for the specified provider and model name.
-export function getAIModel(provider: string, modelName?: string) {
-  const defaultModel = getDefaultModel(provider);
-  const supportedProviders: SupportedProviders = {
+async function getModelsListByProviders(
+  url: string,
+  headers: Headers
+): Promise<string[]> {
+  try {
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch models: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return data.data.map((model: { id: string }) => model.id);
+  } catch (error) {
+    console.error("Error fetching models:", error);
+    return []; // fallback on failure
+  }
+}
+
+async function checkAndFilterModels(
+  provider: string,
+  options: string[]
+): Promise<string[]> {
+  const providersConfig: SupportedProviders = {
     groq: {
       baseURL: "https://api.groq.com/openai/v1",
       apiKey: getApiKey("groq"),
     },
-    deepInfra: {
-      baseURL: "https://api.deepinfra.com/v1/openai",
-      apiKey: getApiKey("deepinfra"),
+    local: {
+      baseURL: "http://localhost:11434/v1",
+      apiKey: "ollama",
+    },
+  };
+
+  const providerConfig =
+    providersConfig[provider as keyof typeof providersConfig];
+
+  if (!providerConfig) {
+    throw new Error(`Unsupported provider: ${provider}`);
+  }
+
+  if (provider === "local") {
+    return options;
+  }
+
+  const { baseURL, apiKey } = providerConfig;
+  const headers = new Headers({
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+  });
+
+  const availableModels = await getModelsListByProviders(
+    `${baseURL}/models`,
+    headers
+  );
+
+  return options.filter((model) => availableModels.includes(model));
+}
+
+// Get the AI model for the specified provider and model name.
+export async function getAIModel(provider: string, modelName?: string) {
+  const supportedProviders: SupportedProviders = {
+    groq: {
+      baseURL: "https://api.groq.com/openai/v1",
+      apiKey: getApiKey("groq"),
     },
     local: {
       baseURL: "http://localhost:11434/v1",
@@ -84,9 +130,30 @@ export function getAIModel(provider: string, modelName?: string) {
     throw new Error(`Unsupported provider: ${provider}`);
   }
 
+  // Dynamically check and filter the supported models list
+  const availableOptions = await checkAndFilterModels(
+    provider,
+    getSupportedModels(provider)
+  );
+
+  const defaultModel = getDefaultModel(provider);
+  const finalModel =
+    modelName && availableOptions.includes(modelName)
+      ? modelName
+      : defaultModel;
+
+  // Final check to ensure the chosen model is available
+  if (!availableOptions.includes(finalModel)) {
+    throw new Error(
+      `Selected model "${finalModel}" is not available for provider "${provider}". Please choose from: ${availableOptions.join(
+        ", "
+      )}`
+    );
+  }
+
   const { baseURL, apiKey } = supportedProviders[provider];
   return createOpenAI({
     baseURL,
     apiKey,
-  })(modelName || defaultModel);
+  })(finalModel);
 }

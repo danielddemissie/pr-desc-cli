@@ -12,7 +12,7 @@ export async function generatePRDescription(
   changes: GitChanges,
   options: GenerateOptions
 ): Promise<string> {
-  const model = getAIModel(options.provider, options.model);
+  const model = await getAIModel(options.provider, options.model);
   const prompt = buildPrompt(
     changes,
     options.template,
