@@ -113,7 +113,7 @@ function getFileStatus(file: {
 
 // Using gh cli
 
-export async function isGhInstalled(): Promise<boolean> {
+export async function isGhCliInstalled(): Promise<boolean> {
   try {
     await runGhCommand(["--version"]);
     return true;
@@ -122,7 +122,7 @@ export async function isGhInstalled(): Promise<boolean> {
   }
 }
 
-export async function getPrForCurrentBranch(
+export async function getPRForCurrentBranch(
   currentBranch: string
 ): Promise<{ number: number; url: string } | null> {
   try {
@@ -150,12 +150,12 @@ export async function getPrForCurrentBranch(
   }
 }
 
-export async function createPr(body: string): Promise<string> {
+export async function createPR(body: string): Promise<string> {
   const args = ["pr", "create", "--fill", "--body-file", "-"];
   return runGhCommand(args, body);
 }
 
-export async function updatePr(prNumber: number, body: string): Promise<void> {
+export async function updatePR(prNumber: number, body: string): Promise<void> {
   const args = ["pr", "edit", String(prNumber), "--body-file", "-"];
   await runGhCommand(args, body);
 }
@@ -199,7 +199,7 @@ function runGhCommand(args: string[], body?: string): Promise<string> {
   });
 }
 
-function runGitCommand(args: string[]): Promise<string> {
+export function runGitCommand(args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     const git = spawn("git", args);
 

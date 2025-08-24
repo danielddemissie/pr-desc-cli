@@ -12,11 +12,12 @@ import { join, dirname } from "path";
 import { generatePRDescription } from "./pr-generator.js";
 import {
   getGitChanges,
-  createPr,
-  getPrForCurrentBranch,
-  isGhInstalled,
-  updatePr,
+  createPR,
+  getPRForCurrentBranch,
+  isGhCliInstalled,
+  updatePR,
   pushCurrentBranch,
+  runGitCommand,
 } from "./git-utils.js";
 import { getSupportedModels, SUPPORTED_MODELS } from "./models.js";
 import { loadConfig, setApiKey, getApiKey, saveConfig } from "./config.js";
@@ -69,8 +70,8 @@ program
     false
   )
   .option(
-    "--create-pr",
-    "Create or update a PR on GitHub with the generated description",
+    "--gh-pr",
+    "Create or update a PR on GitHub with the generated description using the GitHub CLI",
     false
   )
   .action(async (options) => {
@@ -129,8 +130,8 @@ program
 
       spinner.succeed("PR description generated!");
 
-      if (options.createPr) {
-        if (!(await isGhInstalled())) {
+      if (options.ghPr) {
+        if (!(await isGhCliInstalled())) {
           spinner.fail(
             "GitHub CLI ('gh') is not installed. Please install it to create PRs."
           );
@@ -180,13 +181,11 @@ program
         }
 
         if (proceed) {
-          const existingPr = await getPrForCurrentBranch(changes.currentBranch);
-          const title =
-            changes.commits[0]?.message || `PR for ${changes.currentBranch}`;
+          const existingPr = await getPRForCurrentBranch(changes.currentBranch);
 
           if (existingPr) {
             spinner.start(`Updating PR #${existingPr.number}...`);
-            await updatePr(existingPr.number, description);
+            await updatePR(existingPr.number, description);
             spinner.succeed(
               `Successfully updated PR #${existingPr.number}: ${existingPr.url}`
             );
@@ -195,7 +194,7 @@ program
               spinner.start("Creating PR...");
 
               try {
-                const response = await createPr(description);
+                const response = await createPR(description);
                 spinner.succeed(`Successfully created PR: ${response}`);
                 break;
               } catch (error) {
@@ -228,8 +227,49 @@ program
                     break;
                   }
                 } else if (error instanceof GhUncommittedChangesError) {
-                  spinner.fail(error.message);
-                  break;
+                  spinner.warn(
+                    "You have uncommitted changes in your working directory."
+                  );
+                  const action = await select({
+                    message: "What would you like to do?",
+                    choices: [
+                      { name: "Commit changes", value: "commit" },
+                      { name: "Stash changes and continue", value: "stash" },
+                      { name: "Cancel PR creation", value: "cancel" },
+                    ],
+                  });
+
+                  if (action === "commit") {
+                    const commitMessage = await input({
+                      message: "Enter a commit message:",
+                      default: "chore: prepare for PR",
+                    });
+                    spinner.start("Committing changes...");
+                    try {
+                      await runGitCommand(["add", "."]);
+                      await runGitCommand(["commit", "-m", commitMessage]);
+                      spinner.succeed(
+                        "Changes committed. Retrying PR creation..."
+                      );
+                    } catch (commitError) {
+                      spinner.fail(`Failed to commit changes: ${commitError}`);
+                      break;
+                    }
+                  } else if (action === "stash") {
+                    spinner.start("Stashing uncommitted changes...");
+                    try {
+                      await runGitCommand(["stash"]); // stash the changes
+                      spinner.succeed(
+                        "Changes stashed. Retrying PR creation..."
+                      );
+                    } catch (stashError) {
+                      spinner.fail(`Failed to stash changes: ${stashError}`);
+                      break;
+                    }
+                  } else {
+                    spinner.info("PR creation cancelled.");
+                    break;
+                  }
                 } else {
                   spinner.fail(
                     `PR creation failed: ${
