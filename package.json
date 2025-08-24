@@ -52,7 +52,6 @@
     "typescript",
     "automation",
     "groq",
-    "deepinfra",
     "ollama"
   ],
   "license": "MIT",

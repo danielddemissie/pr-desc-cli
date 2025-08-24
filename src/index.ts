@@ -6,15 +6,23 @@ import ora from "ora";
 import { config } from "dotenv";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
-import { input, select, password } from "@inquirer/prompts";
+import { input, select, password, confirm } from "@inquirer/prompts";
 import { join, dirname } from "path";
 
 import { generatePRDescription } from "./pr-generator.js";
-import { getGitChanges } from "./git-utils.js";
+import {
+  getGitChanges,
+  createPr,
+  getPrForCurrentBranch,
+  isGhInstalled,
+  updatePr,
+  pushCurrentBranch,
+} from "./git-utils.js";
 import { getSupportedModels, SUPPORTED_MODELS } from "./models.js";
 import { loadConfig, setApiKey, getApiKey, saveConfig } from "./config.js";
 import { maskApiKey } from "./utils.js";
 import { PackageJson } from "./types.js";
+import { GhUncommittedChangesError, GhNeedsPushError } from "./types.js";
 
 config();
 
@@ -47,7 +55,7 @@ program
   .alias("gen")
   .description("Generate PR description from git changes")
   .option("-b, --base <branch>", "Base branch to compare against")
-  .option("-p, --provider <provider>", "AI provider (groq, deepinfra, local)")
+  .option("-p, --provider <provider>", "AI provider (groq, local)")
   .option("-m, --model <model>", "AI model to use")
   .option(
     "--template <template>",
@@ -58,6 +66,11 @@ program
   .option(
     "--dry-run",
     "Display decorative output for interactive review (dry run)",
+    false
+  )
+  .option(
+    "--create-pr",
+    "Create or update a PR on GitHub with the generated description",
     false
   )
   .action(async (options) => {
@@ -107,8 +120,7 @@ program
         spinner.text = "Generating PR description with AI...";
       }
 
-      // Generate PR description
-      const description = await generatePRDescription(changes, {
+      let description = await generatePRDescription(changes, {
         provider: options.provider,
         model: options.model,
         template: options.template,
@@ -117,7 +129,120 @@ program
 
       spinner.succeed("PR description generated!");
 
-      if (options.dryRun) {
+      if (options.createPr) {
+        if (!(await isGhInstalled())) {
+          spinner.fail(
+            "GitHub CLI ('gh') is not installed. Please install it to create PRs."
+          );
+          return;
+        }
+
+        let proceed = false;
+        let regenerate = true;
+
+        while (regenerate) {
+          console.log("\n" + chalk.blue("═".repeat(60)));
+          console.log(chalk.bold.cyan("🚀 Generated PR Description Preview"));
+          console.log(chalk.blue("═".repeat(60)));
+          console.log("\n" + description + "\n");
+          console.log(chalk.blue("═".repeat(60)));
+
+          proceed = await confirm({
+            message: "Continue with this PR description?",
+            default: true,
+          });
+
+          if (proceed) {
+            regenerate = false;
+          } else {
+            const action = await select({
+              message: "What would you like to do?",
+              choices: [
+                { name: "Regenerate", value: "regenerate" },
+                { name: "Cancel", value: "cancel" },
+              ],
+            });
+
+            if (action === "regenerate") {
+              spinner.start("Re-generating PR description...");
+              description = await generatePRDescription(changes, {
+                provider: options.provider,
+                model: options.model,
+                template: options.template,
+                customTemplateContent: customTemplateContent,
+              });
+              spinner.succeed("PR description re-generated!");
+            } else {
+              spinner.info("PR creation cancelled.");
+              return;
+            }
+          }
+        }
+
+        if (proceed) {
+          const existingPr = await getPrForCurrentBranch(changes.currentBranch);
+          const title =
+            changes.commits[0]?.message || `PR for ${changes.currentBranch}`;
+
+          if (existingPr) {
+            spinner.start(`Updating PR #${existingPr.number}...`);
+            await updatePr(existingPr.number, description);
+            spinner.succeed(
+              `Successfully updated PR #${existingPr.number}: ${existingPr.url}`
+            );
+          } else {
+            while (true) {
+              spinner.start("Creating PR...");
+
+              try {
+                const response = await createPr(description);
+                spinner.succeed(`Successfully created PR: ${response}`);
+                break;
+              } catch (error) {
+                if (error instanceof GhNeedsPushError) {
+                  spinner.warn("Your branch is not pushed to origin.");
+                  const pushCB = await confirm({
+                    message: `Would you like to push branch '${changes.currentBranch}' to origin?`,
+                    default: true,
+                  });
+
+                  if (pushCB) {
+                    spinner.start("Pushing branch to origin...");
+                    try {
+                      await pushCurrentBranch(changes.currentBranch);
+                      spinner.succeed(
+                        "Successfully pushed to origin! Retrying PR creation..."
+                      );
+                    } catch (pushError) {
+                      spinner.fail(
+                        `Failed to push branch: ${
+                          pushError instanceof Error
+                            ? pushError.message
+                            : pushError
+                        }`
+                      );
+                      break;
+                    }
+                  } else {
+                    spinner.info("PR creation cancelled.");
+                    break;
+                  }
+                } else if (error instanceof GhUncommittedChangesError) {
+                  spinner.fail(error.message);
+                  break;
+                } else {
+                  spinner.fail(
+                    `PR creation failed: ${
+                      error instanceof Error ? error.message : error
+                    }`
+                  );
+                  break;
+                }
+              }
+            }
+          }
+        }
+      } else if (options.dryRun) {
         console.log("\n" + chalk.blue("═".repeat(60)));
         console.log(chalk.bold.cyan("🚀 Generated PR Description (Dry Run)"));
         console.log(chalk.blue("═".repeat(60)));
@@ -172,20 +297,6 @@ program
       }
     }
 
-    let deepinfraApiKey: string | undefined;
-    if (defaultProvider === "deepinfra") {
-      if (getApiKey("deepinfra")) {
-        deepinfraApiKey = await input({
-          message: "Enter your DeepInfra API Key (leave blank to skip):",
-          default: maskApiKey(getApiKey("deepinfra") as string),
-        });
-      } else {
-        deepinfraApiKey = await password({
-          message: "Enter your DeepInfra API Key (leave blank to skip):",
-        });
-      }
-    }
-
     const defaultTemplate = await select({
       message: "Which PR description template style do you prefer by default?",
       choices: ["standard", "detailed", "minimal"].map((t) => ({
@@ -208,9 +319,6 @@ program
     // Save API keys if provided
     if (groqApiKey) {
       setApiKey("groq", groqApiKey);
-    }
-    if (deepinfraApiKey) {
-      setApiKey("deepinfra", deepinfraApiKey);
     }
 
     console.log(chalk.green("\n✅ pr-desc configuration saved successfully!"));
@@ -275,7 +383,7 @@ program
   .command("config")
   .description("Manage configuration and API keys")
   .argument("<action>", "Action to perform (set, get, show)")
-  .argument("[provider]", "Provider name (groq, deepinfra)")
+  .argument("[provider]", "Provider name (groq, local)")
   .argument("[value]", "API key value (for set action)")
   .action((action, provider, value) => {
     switch (action) {

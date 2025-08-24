@@ -1,3 +1,5 @@
+import { spawn } from "child_process";
+
 import simpleGit from "simple-git";
 import type {
   GitChanges,
@@ -5,6 +7,11 @@ import type {
   CommitInfo,
   FileStatus,
 } from "./types.ts";
+import {
+  GhError,
+  GhUncommittedChangesError,
+  GhNeedsPushError,
+} from "./types.js";
 
 const git = simpleGit();
 
@@ -102,4 +109,133 @@ function getFileStatus(file: {
   if (file.additions === 0 && file.deletions > 0) return "deleted";
   if (file.additions > 0 && file.deletions > 0) return "modified";
   return "unknown";
+}
+
+// Using gh cli
+
+export async function isGhInstalled(): Promise<boolean> {
+  try {
+    await runGhCommand(["--version"]);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+export async function getPrForCurrentBranch(
+  currentBranch: string
+): Promise<{ number: number; url: string } | null> {
+  try {
+    const output = await runGhCommand([
+      "pr",
+      "list",
+      "--head",
+      currentBranch,
+      "--json",
+      "number,url",
+    ]);
+    const prs = JSON.parse(output);
+    if (prs.length > 0) {
+      return prs[0];
+    }
+    return null;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes("Could not find a repository for")
+    ) {
+      throw new Error("Not a GitHub repository or no remote configured.");
+    }
+    return null;
+  }
+}
+
+export async function createPr(body: string): Promise<string> {
+  const args = ["pr", "create", "--fill", "--body-file", "-"];
+  return runGhCommand(args, body);
+}
+
+export async function updatePr(prNumber: number, body: string): Promise<void> {
+  const args = ["pr", "edit", String(prNumber), "--body-file", "-"];
+  await runGhCommand(args, body);
+}
+
+function runGhCommand(args: string[], body?: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const gh = spawn("gh", args);
+    let stdout = "";
+    let stderr = "";
+
+    if (body) {
+      gh.stdin.write(body);
+      gh.stdin.end();
+    }
+
+    gh.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    gh.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    gh.on("close", (code) => {
+      if (code === 0) {
+        resolve(stdout.trim());
+      } else {
+        if (stderr.includes("uncommitted changes")) {
+          reject(new GhUncommittedChangesError());
+        } else if (stderr.includes("must first push the current branch")) {
+          reject(new GhNeedsPushError());
+        } else {
+          reject(new GhError(`gh command failed with code ${code}: ${stderr}`));
+        }
+      }
+    });
+
+    gh.on("error", (err) => {
+      reject(err);
+    });
+  });
+}
+
+function runGitCommand(args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const git = spawn("git", args);
+
+    let stdout = "";
+    let stderr = "";
+
+    git.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    git.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    git.on("close", (code) => {
+      if (code === 0) {
+        resolve(stdout.trim());
+      } else {
+        reject(new Error(`git command failed with code ${code}: ${stderr}`));
+      }
+    });
+
+    git.on("error", (err) => {
+      reject(err);
+    });
+  });
+}
+
+export async function pushCurrentBranch(branchName: string): Promise<void> {
+  try {
+    await runGitCommand(["push", "--set-upstream", "origin", branchName]);
+  } catch (error) {
+    throw new Error(
+      `Failed to push current branch '${branchName}': ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+  }
 }

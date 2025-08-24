@@ -6,7 +6,7 @@ An intelligent command-line interface (CLI) tool designed to streamline your dev
 
 - 🤖 **AI-Powered Generation**: Utilizes advanced AI models to analyze Git diffs, commit messages, and file changes for intelligent description generation.
 - 📝 **Flexible Output Templates**: Choose from predefined `standard`, `detailed`, or `minimal` PR description formats to match your team's conventions.
-- ⚡ **Fast & Free**: Integrates with high-performance, free-tier AI providers like Groq and DeepInfra, ensuring rapid generation without cost barriers.
+- ⚡ **Fast & Free**: Integrates with high-performance, free-tier AI providers like Groq and Ollama, ensuring rapid generation without cost barriers.
 - 🔑 **Seamless Configuration**: Store API keys and default settings globally, allowing `pr-desc` to be used effortlessly from any project directory.
 - 📋 **Model Transparency**: Easily list and select from a range of supported AI models for each provider.
 - 🔧 **Robust & Reliable**: Built with TypeScript for enhanced type safety and maintainability.
@@ -47,6 +47,12 @@ This will prompt you for your preferred AI provider, API keys, default template,
 ### Option 1: Use Providers Like Groq and DeepInfra
 
 This method stores your API key securely in a global configuration file (`~/.pr-desc/config.json`), making it accessible from any directory.
+
+**For Groq (recommended for speed):**
+
+pr-desc config set groq your_groq_api_key_here
+
+You can verify your stored configuration at any time:
 
 ```bash
 pr-desc config set <provider> <api-key>
@@ -110,9 +116,9 @@ pr-desc generate
 
 pr-desc gen -b develop # Use a different base branch for comparison
 
-pr-desc gen -p deepinfra # Specify an AI provider (e.g., 'deepinfra', 'local' for Ollama)
+pr-desc gen -b develop
 
-pr-desc gen -m "llama-3.1-8b-instant" # Select a specific AI model (use 'pr-desc models' to see options)
+# Select a specific AI model (use 'pr-desc models' to see options)
 
 pr-desc gen --template detailed # Apply a predefined PR template style
 
@@ -215,11 +221,10 @@ The AI will analyze the git changes and attempt to fill the sections of your cus
 
 The CLI supports the following free and open-source AI providers. You can specify a model using the `-m` or `--model` option.
 
-| Provider  | Default Model                                 | Other Options                                                                                   |
-| --------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Groq      | `llama-3.1-8b-instant`                        | `llama-3.3-70b-versatile`, `mixtral-8x7b-32768`, `gemma2-9b-it`                                 |
-| DeepInfra | `meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo` | `meta-llama/Llama-3.3-70B-Instruct`, `deepseek-ai/DeepSeek-V3`, `deepseek-ai/DeepSeek-R1-Turbo` |
-| Local     | `llama3.1`                                    | `llama3.3`, `codellama`, `deepseek-r1`                                                          |
+| Provider | Default Model          | Other Options                                                   |
+| -------- | ---------------------- | --------------------------------------------------------------- |
+| Groq     | `llama-3.1-8b-instant` | `llama-3.3-70b-versatile`, `mixtral-8x7b-32768`, `gemma2-9b-it` |
+| Local    | `llama3.1`             | `llama3.3`, `codellama`, `deepseek-r1`                          |
 
 ## Upcoming Features
 

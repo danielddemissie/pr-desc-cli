@@ -13,7 +13,6 @@ export interface Config {
   defaultBaseBranch?: string;
   apiKeys?: {
     groq?: string;
-    deepinfra?: string;
   };
 }
 
@@ -52,8 +51,6 @@ export function getApiKey(provider: string): string | undefined {
   switch (provider) {
     case "groq":
       return process.env.GROQ_API_KEY || config.apiKeys?.groq;
-    case "deepinfra":
-      return process.env.DEEPINFRA_API_KEY || config.apiKeys?.deepinfra;
     default:
       return undefined;
   }
