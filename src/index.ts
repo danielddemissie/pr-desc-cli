@@ -198,35 +198,7 @@ program
                 spinner.succeed(`Successfully created PR: ${response}`);
                 break;
               } catch (error) {
-                if (error instanceof GhNeedsPushError) {
-                  spinner.warn("Your branch is not pushed to origin.");
-                  const pushCB = await confirm({
-                    message: `Would you like to push branch '${changes.currentBranch}' to origin?`,
-                    default: true,
-                  });
-
-                  if (pushCB) {
-                    spinner.start("Pushing branch to origin...");
-                    try {
-                      await pushCurrentBranch(changes.currentBranch);
-                      spinner.succeed(
-                        "Successfully pushed to origin! Retrying PR creation..."
-                      );
-                    } catch (pushError) {
-                      spinner.fail(
-                        `Failed to push branch: ${
-                          pushError instanceof Error
-                            ? pushError.message
-                            : pushError
-                        }`
-                      );
-                      break;
-                    }
-                  } else {
-                    spinner.info("PR creation cancelled.");
-                    break;
-                  }
-                } else if (error instanceof GhUncommittedChangesError) {
+                if (error instanceof GhUncommittedChangesError) {
                   spinner.warn(
                     "You have uncommitted changes in your working directory."
                   );
@@ -264,6 +236,34 @@ program
                       );
                     } catch (stashError) {
                       spinner.fail(`Failed to stash changes: ${stashError}`);
+                      break;
+                    }
+                  } else {
+                    spinner.info("PR creation cancelled.");
+                    break;
+                  }
+                } else if (error instanceof GhNeedsPushError) {
+                  spinner.warn("Your branch is not pushed to origin.");
+                  const pushCB = await confirm({
+                    message: `Would you like to push branch '${changes.currentBranch}' to origin?`,
+                    default: true,
+                  });
+
+                  if (pushCB) {
+                    spinner.start("Pushing branch to origin...");
+                    try {
+                      await pushCurrentBranch(changes.currentBranch);
+                      spinner.succeed(
+                        "Successfully pushed to origin! Retrying PR creation..."
+                      );
+                    } catch (pushError) {
+                      spinner.fail(
+                        `Failed to push branch: ${
+                          pushError instanceof Error
+                            ? pushError.message
+                            : pushError
+                        }`
+                      );
                       break;
                     }
                   } else {
