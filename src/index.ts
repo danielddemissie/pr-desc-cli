@@ -208,7 +208,7 @@ program
                     await runGitCommand(["add", "."]);
                     await runGitCommand(["commit", "-m", commitMessage]);
                     spinner.succeed(
-                      "Changes committed. Retrying PR creation..."
+                      "Changes committed. Continuing PR creation..."
                     );
                   } catch (commitError) {
                     spinner.fail(`Failed to commit changes: ${commitError}`);
@@ -220,7 +220,9 @@ program
                   spinner.start("Stashing uncommitted changes...");
                   try {
                     await runGitCommand(["stash"]); // stash the changes
-                    spinner.succeed("Changes stashed. Retrying PR creation...");
+                    spinner.succeed(
+                      "Changes stashed. Continuing PR creation..."
+                    );
                   } catch (stashError) {
                     spinner.fail(`Failed to stash changes: ${stashError}`);
                     return;
@@ -249,13 +251,12 @@ program
               `Successfully updated PR #${existingPr.number}: ${existingPr.url}`
             );
           } else {
-            let retry = true;
-            while (retry) {
+            while (true) {
               spinner.start("Creating PR...");
               try {
                 const response = await createPR(description);
                 spinner.succeed(`Successfully created PR: ${response}`);
-                retry = false;
+                break;
               } catch (error) {
                 if (error instanceof GhNeedsPushError) {
                   const pushCB = await confirm({
@@ -273,7 +274,7 @@ program
                         changes.currentBranch,
                       ]);
                       spinner.succeed(
-                        "Successfully pushed to origin! Retrying PR creation..."
+                        "Successfully pushed to origin! Continuing PR creation..."
                       );
                     } catch (pushError) {
                       spinner.fail(
