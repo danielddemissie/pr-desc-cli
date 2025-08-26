@@ -4,15 +4,14 @@ import simpleGit from "simple-git";
 import { input, select, confirm } from "@inquirer/prompts";
 import { Ora } from "ora";
 
-import {
-  type GitChanges,
-  type FileChange,
-  type CommitInfo,
-  type FileStatus,
-  GhNeedsPushError,
-  GhUncommittedChangesError,
-  GhError,
-} from "./types.js";
+import type {
+  GitChanges,
+  FileChange,
+  CommitInfo,
+  FileStatus,
+} from "./types.ts";
+
+import { GhError, GhNeedsPushError } from "./types.js";
 
 const git = simpleGit();
 
@@ -184,7 +183,7 @@ function runGhCommand(args: string[], body?: string): Promise<string> {
       if (code === 0) {
         resolve(stdout.trim());
       } else {
-        if (stderr.includes("push the current branch")) {
+        if (stderr.includes("must first push the current branch")) {
           reject(new GhNeedsPushError());
         }
         reject(new GhError(`gh command failed with code ${code}: ${stderr}`));
@@ -224,107 +223,4 @@ export function runGitCommand(args: string[]): Promise<string> {
       reject(err);
     });
   });
-}
-
-export async function handleUncommittedChanges(spinner: Ora): Promise<void> {
-  spinner.info("Checking for uncommitted changes...");
-  const gitStatus = spawn("git", ["status", "--porcelain"]);
-  let stdout = "";
-
-  gitStatus.stderr.on("data", (data) => {
-    stdout += data.toString();
-  });
-
-  return new Promise((resolve, reject) => {
-    gitStatus.on("close", async (code) => {
-      if (stdout.trim().length > 0) {
-        console.log("Here @ " + stdout);
-        const action = await select({
-          message: "What would you like to do?",
-          choices: [
-            { name: "Commit changes", value: "commit" },
-            { name: "Stash changes and continue", value: "stash" },
-            { name: "Cancel PR creation", value: "cancel" },
-          ],
-        });
-
-        switch (action) {
-          case "commit":
-            const commitMessage = await input({
-              message: "Enter a commit message:",
-              default: "chore: prepare for PR",
-            });
-            spinner.start("Committing changes...");
-            try {
-              await runGitCommand(["add", "."]);
-              await runGitCommand(["commit", "-m", commitMessage]);
-              spinner.succeed("Changes committed. Retrying PR creation...");
-            } catch (commitError) {
-              spinner.fail(`Failed to commit changes: ${commitError}`);
-            }
-            resolve();
-            break;
-          case "stash":
-            spinner.start("Stashing uncommitted changes...");
-            try {
-              await runGitCommand(["stash"]); // stash the changes
-              spinner.succeed("Changes stashed. Retrying PR creation...");
-            } catch (stashError) {
-              spinner.fail(`Failed to stash changes: ${stashError}`);
-            }
-            resolve();
-            break;
-          case "cancel":
-          default:
-            spinner.info("PR creation cancelled.");
-            reject(new Error("PR creation cancelled."));
-            break;
-        }
-      } else {
-        resolve();
-      }
-    });
-  });
-}
-
-export async function handlePushCurrentBranch(
-  currentBranch: string,
-  spinner: Ora
-): Promise<void> {
-  try {
-    const pushCB = await confirm({
-      message: `Would you like to push branch '${currentBranch}' to origin?`,
-      default: true,
-    });
-
-    if (pushCB) {
-      spinner.start("Pushing branch to origin...");
-      try {
-        await runGitCommand([
-          "push",
-          "--set-upstream",
-          "origin",
-          currentBranch,
-        ]);
-        spinner.succeed(
-          "Successfully pushed to origin! Retrying PR creation..."
-        );
-      } catch (pushError) {
-        spinner.fail(
-          `Failed to push branch: ${
-            pushError instanceof Error ? pushError.message : pushError
-          }`
-        );
-        throw new Error("PR creation cancelled due to push failure.");
-      }
-    } else {
-      spinner.info("PR creation cancelled.");
-      throw new Error("PR creation cancelled by user.");
-    }
-  } catch (error) {
-    spinner.fail(
-      `Error: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-    process.exit(1);
-  }
 }

@@ -16,15 +16,13 @@ import {
   getPRForCurrentBranch,
   isGhCliInstalled,
   updatePR,
-  handlePushCurrentBranch,
-  handleUncommittedChanges,
   runGitCommand,
 } from "./git-utils.js";
 import { getSupportedModels, SUPPORTED_MODELS } from "./models.js";
 import { loadConfig, setApiKey, getApiKey, saveConfig } from "./config.js";
 import { maskApiKey } from "./utils.js";
 import { PackageJson } from "./types.js";
-import { GhUncommittedChangesError, GhNeedsPushError } from "./types.js";
+import { GhNeedsPushError } from "./types.js";
 
 config();
 
