@@ -16,6 +16,9 @@ import {
   getPRForCurrentBranch,
   isGhCliInstalled,
   updatePR,
+  handlePushCurrentBranch,
+  handleUncommittedChanges,
+  runGitCommand,
 } from "./git-utils.js";
 import { getSupportedModels, SUPPORTED_MODELS } from "./models.js";
 import { loadConfig, setApiKey, getApiKey, saveConfig } from "./config.js";
@@ -179,36 +182,116 @@ program
         }
 
         if (proceed) {
-          const existingPr = await getPRForCurrentBranch(changes.currentBranch);
+          try {
+            spinner.start("Checking for uncommitted changes...");
+            const gitStatus = await runGitCommand(["status", "--porcelain"]);
+            if (gitStatus.trim().length > 0) {
+              spinner.warn(`Unstaged changes found:\n${gitStatus}.\n`);
 
+              const action = await select({
+                message: `What would you like to do?`,
+                choices: [
+                  { name: "Commit changes", value: "commit" },
+                  { name: "Stash changes and continue", value: "stash" },
+                  { name: "Cancel PR creation", value: "cancel" },
+                ],
+              });
+
+              switch (action) {
+                case "commit":
+                  const commitMessage = await input({
+                    message: "Enter a commit message:",
+                    default: "chore: prepare for PR",
+                  });
+                  spinner.start("Committing changes...");
+                  try {
+                    await runGitCommand(["add", "."]);
+                    await runGitCommand(["commit", "-m", commitMessage]);
+                    spinner.succeed(
+                      "Changes committed. Retrying PR creation..."
+                    );
+                  } catch (commitError) {
+                    spinner.fail(`Failed to commit changes: ${commitError}`);
+                    return;
+                  }
+
+                  break;
+                case "stash":
+                  spinner.start("Stashing uncommitted changes...");
+                  try {
+                    await runGitCommand(["stash"]); // stash the changes
+                    spinner.succeed("Changes stashed. Retrying PR creation...");
+                  } catch (stashError) {
+                    spinner.fail(`Failed to stash changes: ${stashError}`);
+                    return;
+                  }
+                  break;
+                case "cancel":
+                default:
+                  spinner.info("PR creation cancelled.");
+                  return;
+              }
+            }
+          } catch (error) {
+            spinner.fail(
+              `Error: ${
+                error instanceof Error ? error.message : "Unknown error"
+              }`
+            );
+            process.exit(1);
+          }
+
+          const existingPr = await getPRForCurrentBranch(changes.currentBranch);
           if (existingPr) {
             spinner.start(`Updating PR #${existingPr.number}...`);
-            await updatePR(
-              existingPr.number,
-              description,
-              changes.currentBranch
-            );
+            await updatePR(existingPr.number, description);
             spinner.succeed(
               `Successfully updated PR #${existingPr.number}: ${existingPr.url}`
             );
           } else {
-            while (true) {
+            let retry = true;
+            while (retry) {
               spinner.start("Creating PR...");
-
               try {
-                const response = await createPR(
-                  description,
-                  changes.currentBranch
-                );
+                const response = await createPR(description);
                 spinner.succeed(`Successfully created PR: ${response}`);
-                break;
+                retry = false;
               } catch (error) {
-                spinner.fail(
-                  `PR creation failed: ${
-                    error instanceof Error ? error.message : error
-                  }`
-                );
-                break;
+                if (error instanceof GhNeedsPushError) {
+                  const pushCB = await confirm({
+                    message: `Would you like to push branch '${changes.currentBranch}' to origin?`,
+                    default: true,
+                  });
+
+                  if (pushCB) {
+                    spinner.start("Pushing branch to origin...");
+                    try {
+                      await runGitCommand([
+                        "push",
+                        "--set-upstream",
+                        "origin",
+                        changes.currentBranch,
+                      ]);
+                      spinner.succeed(
+                        "Successfully pushed to origin! Retrying PR creation..."
+                      );
+                    } catch (pushError) {
+                      spinner.fail(
+                        `Failed to push branch: ${
+                          pushError instanceof Error
+                            ? pushError.message
+                            : pushError
+                        }`
+                      );
+                      throw new Error(
+                        "PR creation cancelled due to push failure."
+                      );
+                    }
+                  } else {
+                    spinner.info("PR creation cancelled.");
+                    throw new Error("PR creation cancelled by user.");
+                  }
+                }
               }
             }
           }

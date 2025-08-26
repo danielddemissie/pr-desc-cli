@@ -2,14 +2,17 @@ import { spawn } from "child_process";
 
 import simpleGit from "simple-git";
 import { input, select, confirm } from "@inquirer/prompts";
-import ora from "ora";
+import { Ora } from "ora";
 
-import type {
-  GitChanges,
-  FileChange,
-  CommitInfo,
-  FileStatus,
-} from "./types.ts";
+import {
+  type GitChanges,
+  type FileChange,
+  type CommitInfo,
+  type FileStatus,
+  GhNeedsPushError,
+  GhUncommittedChangesError,
+  GhError,
+} from "./types.js";
 
 const git = simpleGit();
 
@@ -124,7 +127,6 @@ export async function getPRForCurrentBranch(
   currentBranch: string
 ): Promise<{ number: number; url: string } | null> {
   try {
-    await handleUncommittedChanges();
     const output = await runGhCommand([
       "pr",
       "list",
@@ -149,30 +151,17 @@ export async function getPRForCurrentBranch(
   }
 }
 
-export async function createPR(
-  body: string,
-  currentBranch: string
-): Promise<string> {
+export async function createPR(body: string): Promise<string> {
   const args = ["pr", "create", "--fill", "--body-file", "-"];
-  return runGhCommand(args, body, currentBranch);
+  return runGhCommand(args, body);
 }
 
-export async function updatePR(
-  prNumber: number,
-  body: string,
-  currentBranch: string
-): Promise<void> {
+export async function updatePR(prNumber: number, body: string): Promise<void> {
   const args = ["pr", "edit", String(prNumber), "--body-file", "-"];
-  await runGhCommand(args, body, currentBranch);
+  await runGhCommand(args, body);
 }
 
-function runGhCommand(
-  args: string[],
-  body?: string,
-  currentBranch?: string
-): Promise<string> {
-  const spinner = ora("Running gh command...");
-  spinner.start();
+function runGhCommand(args: string[], body?: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const gh = spawn("gh", args);
     let stdout = "";
@@ -188,9 +177,9 @@ function runGhCommand(
     });
 
     gh.stderr.on("data", async (data) => {
-      const errorString = data.toString();
-      if (errorString.includes("push the current branch")) {
-        await handlePushCurrentBranch(errorString, currentBranch);
+      stderr += data.toString();
+      if (stderr.includes("uncommitted changes")) {
+        console.log("Uncommitted changes detected.");
       }
     });
 
@@ -198,7 +187,12 @@ function runGhCommand(
       if (code === 0) {
         resolve(stdout.trim());
       } else {
-        reject(new Error(`gh command failed with code ${code}: ${stderr}`));
+        if (stderr.includes("push the current branch")) {
+          reject(new GhNeedsPushError());
+        } else if (stderr.includes("uncommitted changes")) {
+          reject(new GhUncommittedChangesError());
+        }
+        reject(new GhError(`gh command failed with code ${code}: ${stderr}`));
       }
     });
 
@@ -237,8 +231,8 @@ export function runGitCommand(args: string[]): Promise<string> {
   });
 }
 
-export async function handleUncommittedChanges(): Promise<void> {
-  const spinner = ora("Checking for uncommitted changes...");
+export async function handleUncommittedChanges(spinner: Ora): Promise<void> {
+  spinner.info("Checking for uncommitted changes...");
   const gitStatus = spawn("git", ["status", "--porcelain"]);
   let stdout = "";
 
@@ -249,6 +243,7 @@ export async function handleUncommittedChanges(): Promise<void> {
   return new Promise((resolve, reject) => {
     gitStatus.on("close", async (code) => {
       if (stdout.trim().length > 0) {
+        console.log("Here @ " + stdout);
         const action = await select({
           message: "What would you like to do?",
           choices: [
@@ -272,6 +267,7 @@ export async function handleUncommittedChanges(): Promise<void> {
             } catch (commitError) {
               spinner.fail(`Failed to commit changes: ${commitError}`);
             }
+            resolve();
             break;
           case "stash":
             spinner.start("Stashing uncommitted changes...");
@@ -281,6 +277,7 @@ export async function handleUncommittedChanges(): Promise<void> {
             } catch (stashError) {
               spinner.fail(`Failed to stash changes: ${stashError}`);
             }
+            resolve();
             break;
           case "cancel":
           default:
@@ -296,15 +293,10 @@ export async function handleUncommittedChanges(): Promise<void> {
 }
 
 export async function handlePushCurrentBranch(
-  errorMessage: string,
-  currentBranch?: string
+  currentBranch: string,
+  spinner: Ora
 ): Promise<void> {
-  if (!currentBranch) return;
-
-  const spinner = ora("Handling unpushed branch...");
-  spinner.start();
-  if (errorMessage.includes("push the current branch")) {
-    spinner.warn("Your branch is not pushed to origin.");
+  try {
     const pushCB = await confirm({
       message: `Would you like to push branch '${currentBranch}' to origin?`,
       default: true,
@@ -334,5 +326,10 @@ export async function handlePushCurrentBranch(
       spinner.info("PR creation cancelled.");
       throw new Error("PR creation cancelled by user.");
     }
+  } catch (error) {
+    spinner.fail(
+      `Error: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    process.exit(1);
   }
 }
