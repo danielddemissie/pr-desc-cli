@@ -1,16 +1,12 @@
 import { spawn } from "child_process";
 
 import simpleGit from "simple-git";
-import { input, select, confirm } from "@inquirer/prompts";
-import { Ora } from "ora";
-
 import type {
   GitChanges,
   FileChange,
   CommitInfo,
   FileStatus,
 } from "./types.ts";
-
 import { GhError, GhNeedsPushError } from "./types.js";
 
 const git = simpleGit();
@@ -175,7 +171,7 @@ function runGhCommand(args: string[], body?: string): Promise<string> {
       stdout += data.toString();
     });
 
-    gh.stderr.on("data", async (data) => {
+    gh.stderr.on("data", (data) => {
       stderr += data.toString();
     });
 
@@ -185,8 +181,9 @@ function runGhCommand(args: string[], body?: string): Promise<string> {
       } else {
         if (stderr.includes("must first push the current branch")) {
           reject(new GhNeedsPushError());
+        } else {
+          reject(new GhError(`gh command failed with code ${code}: ${stderr}`));
         }
-        reject(new GhError(`gh command failed with code ${code}: ${stderr}`));
       }
     });
 
