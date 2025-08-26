@@ -224,3 +224,15 @@ export function runGitCommand(args: string[]): Promise<string> {
     });
   });
 }
+
+export async function pushCurrentBranch(branchName: string): Promise<void> {
+  try {
+    await runGitCommand(["push", "--set-upstream", "origin", branchName]);
+  } catch (error) {
+    throw new Error(
+      `Failed to push current branch '${branchName}': ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+  }
+}

@@ -16,6 +16,7 @@ import {
   getPRForCurrentBranch,
   isGhCliInstalled,
   updatePR,
+  pushCurrentBranch,
   runGitCommand,
 } from "./git-utils.js";
 import { getSupportedModels, SUPPORTED_MODELS } from "./models.js";
@@ -242,6 +243,7 @@ program
           }
 
           const existingPr = await getPRForCurrentBranch(changes.currentBranch);
+
           if (existingPr) {
             spinner.start(`Updating PR #${existingPr.number}...`);
             await updatePR(existingPr.number, description);
@@ -251,6 +253,7 @@ program
           } else {
             while (true) {
               spinner.start("Creating PR...");
+
               try {
                 const response = await createPR(description);
                 spinner.succeed(`Successfully created PR: ${response}`);
@@ -265,12 +268,7 @@ program
                   if (pushCB) {
                     spinner.start("Pushing branch to origin...");
                     try {
-                      await runGitCommand([
-                        "push",
-                        "--set-upstream",
-                        "origin",
-                        changes.currentBranch,
-                      ]);
+                      await pushCurrentBranch(changes.currentBranch);
                       spinner.succeed(
                         "Successfully pushed to origin! Continuing PR creation..."
                       );
@@ -282,14 +280,19 @@ program
                             : pushError
                         }`
                       );
-                      throw new Error(
-                        "PR creation cancelled due to push failure."
-                      );
+                      break;
                     }
                   } else {
                     spinner.info("PR creation cancelled.");
-                    throw new Error("PR creation cancelled by user.");
+                    break;
                   }
+                } else {
+                  spinner.fail(
+                    `PR creation failed: ${
+                      error instanceof Error ? error.message : error
+                    }`
+                  );
+                  break;
                 }
               }
             }
