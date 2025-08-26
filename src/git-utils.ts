@@ -178,9 +178,6 @@ function runGhCommand(args: string[], body?: string): Promise<string> {
 
     gh.stderr.on("data", async (data) => {
       stderr += data.toString();
-      if (stderr.includes("uncommitted changes")) {
-        console.log("Uncommitted changes detected.");
-      }
     });
 
     gh.on("close", (code) => {
@@ -189,8 +186,6 @@ function runGhCommand(args: string[], body?: string): Promise<string> {
       } else {
         if (stderr.includes("push the current branch")) {
           reject(new GhNeedsPushError());
-        } else if (stderr.includes("uncommitted changes")) {
-          reject(new GhUncommittedChangesError());
         }
         reject(new GhError(`gh command failed with code ${code}: ${stderr}`));
       }
