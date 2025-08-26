@@ -16,8 +16,6 @@ import {
   getPRForCurrentBranch,
   isGhCliInstalled,
   updatePR,
-  pushCurrentBranch,
-  runGitCommand,
 } from "./git-utils.js";
 import { getSupportedModels, SUPPORTED_MODELS } from "./models.js";
 import { loadConfig, setApiKey, getApiKey, saveConfig } from "./config.js";
@@ -185,7 +183,11 @@ program
 
           if (existingPr) {
             spinner.start(`Updating PR #${existingPr.number}...`);
-            await updatePR(existingPr.number, description);
+            await updatePR(
+              existingPr.number,
+              description,
+              changes.currentBranch
+            );
             spinner.succeed(
               `Successfully updated PR #${existingPr.number}: ${existingPr.url}`
             );
@@ -194,90 +196,19 @@ program
               spinner.start("Creating PR...");
 
               try {
-                const response = await createPR(description);
+                const response = await createPR(
+                  description,
+                  changes.currentBranch
+                );
                 spinner.succeed(`Successfully created PR: ${response}`);
                 break;
               } catch (error) {
-                if (error instanceof GhUncommittedChangesError) {
-                  spinner.warn(
-                    "You have uncommitted changes in your working directory."
-                  );
-                  const action = await select({
-                    message: "What would you like to do?",
-                    choices: [
-                      { name: "Commit changes", value: "commit" },
-                      { name: "Stash changes and continue", value: "stash" },
-                      { name: "Cancel PR creation", value: "cancel" },
-                    ],
-                  });
-
-                  if (action === "commit") {
-                    const commitMessage = await input({
-                      message: "Enter a commit message:",
-                      default: "chore: prepare for PR",
-                    });
-                    spinner.start("Committing changes...");
-                    try {
-                      await runGitCommand(["add", "."]);
-                      await runGitCommand(["commit", "-m", commitMessage]);
-                      spinner.succeed(
-                        "Changes committed. Retrying PR creation..."
-                      );
-                    } catch (commitError) {
-                      spinner.fail(`Failed to commit changes: ${commitError}`);
-                      break;
-                    }
-                  } else if (action === "stash") {
-                    spinner.start("Stashing uncommitted changes...");
-                    try {
-                      await runGitCommand(["stash"]); // stash the changes
-                      spinner.succeed(
-                        "Changes stashed. Retrying PR creation..."
-                      );
-                    } catch (stashError) {
-                      spinner.fail(`Failed to stash changes: ${stashError}`);
-                      break;
-                    }
-                  } else {
-                    spinner.info("PR creation cancelled.");
-                    break;
-                  }
-                } else if (error instanceof GhNeedsPushError) {
-                  spinner.warn("Your branch is not pushed to origin.");
-                  const pushCB = await confirm({
-                    message: `Would you like to push branch '${changes.currentBranch}' to origin?`,
-                    default: true,
-                  });
-
-                  if (pushCB) {
-                    spinner.start("Pushing branch to origin...");
-                    try {
-                      await pushCurrentBranch(changes.currentBranch);
-                      spinner.succeed(
-                        "Successfully pushed to origin! Retrying PR creation..."
-                      );
-                    } catch (pushError) {
-                      spinner.fail(
-                        `Failed to push branch: ${
-                          pushError instanceof Error
-                            ? pushError.message
-                            : pushError
-                        }`
-                      );
-                      break;
-                    }
-                  } else {
-                    spinner.info("PR creation cancelled.");
-                    break;
-                  }
-                } else {
-                  spinner.fail(
-                    `PR creation failed: ${
-                      error instanceof Error ? error.message : error
-                    }`
-                  );
-                  break;
-                }
+                spinner.fail(
+                  `PR creation failed: ${
+                    error instanceof Error ? error.message : error
+                  }`
+                );
+                break;
               }
             }
           }
@@ -425,7 +356,9 @@ program
   .argument("<action>", "Action to perform (set, get, show)")
   .argument("[provider]", "Provider name (groq, local)")
   .argument("[value]", "API key value (for set action)")
-  .action((action, provider, value) => {
+  .option("-u, --unmask", "Unmask the API key", false)
+  .action((action, provider, value, options) => {
+    const { unmask } = options;
     switch (action) {
       case "set":
         if (!provider || !value) {
@@ -445,7 +378,7 @@ program
         const apiKey = getApiKey(provider);
         if (apiKey) {
           console.log(
-            `${provider}: ${apiKey.slice(0, 8)}...${apiKey.slice(-4)}`
+            chalk.dim(`${provider}: ${unmask ? apiKey : maskApiKey(apiKey)}`)
           );
         } else {
           console.log(`${provider}: Not set`);
@@ -453,7 +386,7 @@ program
         break;
 
       case "show":
-        const config = loadConfig();
+        const config = loadConfig(Boolean(unmask));
         console.log(chalk.bold.cyan("Current Configuration:"));
         console.log(JSON.stringify(config, null, 2));
         break;
