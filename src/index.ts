@@ -260,6 +260,7 @@ program
                 break;
               } catch (error) {
                 if (error instanceof GhNeedsPushError) {
+                  spinner.warn("Your branch is not pushed to origin.");
                   const pushCB = await confirm({
                     message: `Would you like to push branch '${changes.currentBranch}' to origin?`,
                     default: true,
@@ -441,9 +442,7 @@ program
   .argument("<action>", "Action to perform (set, get, show)")
   .argument("[provider]", "Provider name (groq, local)")
   .argument("[value]", "API key value (for set action)")
-  .option("-u, --unmask", "Unmask the API key", false)
-  .action((action, provider, value, options) => {
-    const { unmask } = options;
+  .action((action, provider, value) => {
     switch (action) {
       case "set":
         if (!provider || !value) {
@@ -463,7 +462,7 @@ program
         const apiKey = getApiKey(provider);
         if (apiKey) {
           console.log(
-            chalk.dim(`${provider}: ${unmask ? apiKey : maskApiKey(apiKey)}`)
+            `${provider}: ${apiKey.slice(0, 8)}...${apiKey.slice(-4)}`
           );
         } else {
           console.log(`${provider}: Not set`);
@@ -471,7 +470,7 @@ program
         break;
 
       case "show":
-        const config = loadConfig(Boolean(unmask));
+        const config = loadConfig();
         console.log(chalk.bold.cyan("Current Configuration:"));
         console.log(JSON.stringify(config, null, 2));
         break;
