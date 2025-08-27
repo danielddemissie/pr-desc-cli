@@ -1,14 +1,7 @@
 import { generateText } from "ai";
-import type { GitChanges } from "./types.js";
+import type { GitChanges, CommitMessageOptions } from "./types.js";
 import { getAIModel } from "./models.js";
-
-export interface CommitMessageOptions {
-  provider: string;
-  model?: string;
-  maxFiles?: number;
-  maxDiffLines?: number;
-  typeHint?: string; // e.g. feat, fix, chore, docs
-}
+import { formatCommitMessage } from "./utils.js";
 
 export async function generateConventionalCommitMessage(
   changes: GitChanges,
@@ -29,26 +22,79 @@ export async function generateConventionalCommitMessage(
     })
     .join("\n\n");
 
-  const prompt = `You are an expert software engineer. Based on the staged git diff, generate a SINGLE Conventional Commit message.
+  function buildPrompt(
+    changes: GitChanges,
+    options: CommitMessageOptions,
+    maxDiffLines: number = 500,
+    maxFiles: number = 20,
+    fileSummaries: string
+  ): string {
+    console.log(fileSummaries, changes);
+    const gitDataSection = `
+## Git Context
+**Base Branch:** ${changes.baseBranch}  
+**Current Branch:** ${changes.currentBranch}  
+**Files Changed:** ${changes.files.length}  
+**Insertions:** ${changes.stats.insertions}  
+**Deletions:** ${changes.stats.deletions}  
+
+### Recent Commits
+${changes.commits
+  .map((commit) => `- ${commit.message.trim()} (${commit.hash.slice(0, 7)})`)
+  .join("\n")}
+
+### File Changes
+${changes.files
+  .slice(0, maxFiles)
+  .map((file) => {
+    const patch = file.patch
+      ? file.patch.slice(0, maxDiffLines) +
+        (file.patch.length > maxDiffLines ? "..." : "")
+      : "";
+    return `**${file.path}** — Status: ${file.status}, +${file.additions}, -${
+      file.deletions
+    }
+${patch ? `\`\`\`diff\n${patch}\n\`\`\`` : ""}`;
+  })
+  .join("\n\n")}
+
+${
+  changes.files.length > maxFiles
+    ? `\n...and ${changes.files.length - maxFiles} more files changed.`
+    : ""
+}`;
+
+    const finalAiInstructionForCommit = `
+Do *not* include any meta information or explanations — just the commit message
+Do *not* include any labels like "Since I don't see the staged git diff, I'll provide a generic example based on common commit messages"
+Do *not* include any labels like "Based on the staged git diff, I will generate a single Conventional Commit message." just the commit message
+Do *not* include any labels like "Here's a suggested PR description", "Feel free to modify it"
+Do *not* include any emojis.
+Do *not* include any labels like "This is a suggested commit message" — just the commit message
+Do *not* include any labels like "Unfortunately, I don't see any staged git diff output in your question. However, I can guide you on how to generate a Conventional Commit message based on common practices." just the commit message
+
+Return *only* the commit line.
+`;
+
+    const basePrompt = `You are an expert software engineer. Based on the staged git diff, generate a SINGLE Conventional Commit message.
 Rules:
 - Use format: <type>(<optional scope>): <short imperative summary>
-- type must be one of: feat, fix, docs, style, refactor, perf, test, chore, build, ci
-- Summary must be <= 72 characters
+- type *must* be one of: feat, fix, docs, style, refactor, perf, test, chore, build, ci
+- Summary *must* be <= 72 characters
 - Do NOT include body or footer; ONLY the first line
 - No trailing period
 - Be precise and specific.
-${options.typeHint ? `Preferred type (hint): ${options.typeHint}` : ""}
+${options.typeHint ? `Preferred type (hint): ${options.typeHint}` : ""}`;
 
-Git Context:
-Base: ${changes.baseBranch}
-Branch: ${changes.currentBranch}
-Recent commit messages for reference (avoid duplicates):
-${changes.commits.map((c) => `- ${c.message}`).join("\n")}
+    return `
+Git Changes: ${gitDataSection}
+File summary: ${fileSummaries}
+Base Prompt: ${basePrompt}
+Final Instruction: ${finalAiInstructionForCommit}
+`;
+  }
 
-Changed Files (subset):\n${fileSummaries}
-
-Return only the commit line.`;
-
+  const prompt = buildPrompt(changes, options, 500, 20, fileSummaries);
   const { text } = await generateText({
     model,
     prompt,
@@ -56,10 +102,5 @@ Return only the commit line.`;
     maxTokens: 60,
   });
 
-  // Post-process: take first line, trim, strip quotes/backticks
-  const firstLine = text
-    .split(/\r?\n/)[0]
-    .trim()
-    .replace(/^['"`]|['"`]$/g, "");
-  return firstLine;
+  return formatCommitMessage(text);
 }

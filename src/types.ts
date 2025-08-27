@@ -78,6 +78,15 @@ export interface SupportedProviders {
   [key: string]: ProviderConfig;
 }
 
+export interface CommitMessageOptions {
+  provider: string;
+  model?: string;
+  maxFiles?: number;
+  maxDiffLines?: number;
+  typeHint?: string;
+}
+
+// Errors
 export class GhError extends Error {
   constructor(message: string) {
     super(message);

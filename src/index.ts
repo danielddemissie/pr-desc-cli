@@ -496,7 +496,9 @@ program
   .argument("<action>", "Action to perform (set, get, show)")
   .argument("[provider]", "Provider name (groq, local)")
   .argument("[value]", "API key value (for set action)")
-  .action((action, provider, value) => {
+  .option("-u, --unmask", "Unmask the API key", false)
+  .action((action, provider, value, options) => {
+    const { unmask } = options;
     switch (action) {
       case "set":
         if (!provider || !value) {
@@ -516,7 +518,7 @@ program
         const apiKey = getApiKey(provider);
         if (apiKey) {
           console.log(
-            `${provider}: ${apiKey.slice(0, 8)}...${apiKey.slice(-4)}`
+            chalk.dim(`${provider}: ${unmask ? apiKey : maskApiKey(apiKey)}`)
           );
         } else {
           console.log(`${provider}: Not set`);
@@ -524,7 +526,7 @@ program
         break;
 
       case "show":
-        const config = loadConfig();
+        const config = loadConfig(Boolean(unmask));
         console.log(chalk.bold.cyan("Current Configuration:"));
         console.log(JSON.stringify(config, null, 2));
         break;
