@@ -1,6 +1,15 @@
-# PR Description CLI
+```
+██████╗ ██████╗      ██████╗  ███████╗███████╗ ██████╗
+██╔══██╗██╔══██╗     ██╔═══██╗██╔════╝██╔════╝ ██╔═══╝
+██████╔╝██████╔╝     ██║   ██║█████╗  ███████╗ ██║
+██╔═══╝ ██╔══██╗     ██║   ██║██╔══╝      ╚██║ ██║
+██║     ██║  ██║     ╚██████╔╝███████╗███████║ ██████╗
+╚═╝     ╚═╝  ╚═╝      ╚═════╝ ╚══════╝╚══════╝ ╚═════╝
+```
 
-An intelligent command-line interface (CLI) tool designed to streamline your development workflow by automatically generating comprehensive Pull Request (PR) descriptions from your Git changes. Leveraging free and open-source AI models, `pr-desc` analyzes your commits and file modifications to craft clear, concise, and structured PR summaries, saving you time and ensuring consistent documentation.
+# PR DESC
+
+An intelligent command-line interface (CLI) tool designed to streamline your development workflow by automatically generating comprehensive Pull Request (PR) descriptions and Conventional Commit messages from your Git changes. Leveraging free and open-source AI models, `pr-desc` analyzes your commits and file modifications to craft clear, concise, and structured PR summaries, saving you time and ensuring consistent documentation. The CLI also supports direct creation and updating of GitHub Pull Requests, as well as automatic generation of Conventional Commit messages, making your workflow faster and more consistent.
 
 ## Features
 

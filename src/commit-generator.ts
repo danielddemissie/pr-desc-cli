@@ -29,7 +29,6 @@ export async function generateConventionalCommitMessage(
     maxFiles: number = 20,
     fileSummaries: string
   ): string {
-    console.log(fileSummaries, changes);
     const gitDataSection = `
 ## Git Context
 **Base Branch:** ${changes.baseBranch}  

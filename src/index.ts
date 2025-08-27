@@ -46,6 +46,50 @@ try {
 }
 const program = new Command();
 
+if (process.argv.length <= 2) {
+  const PR_DESC_ASCII = `
+      ██████╗ ██████╗      ██████╗  ███████╗███████╗ ██████╗
+      ██╔══██╗██╔══██╗     ██╔═══██╗██╔════╝██╔════╝ ██╔═══╝
+      ██████╔╝██████╔╝     ██║   ██║█████╗  ███████╗ ██║
+      ██╔═══╝ ██╔══██╗     ██║   ██║██╔══╝      ╚██║ ██║
+      ██║     ██║  ██║     ╚██████╔╝███████╗███████║ ██████╗
+      ╚═╝     ╚═╝  ╚═╝      ╚═════╝ ╚══════╝╚══════╝ ╚═════╝`;
+
+  console.log(chalk.cyan(PR_DESC_ASCII));
+  console.log(
+    chalk.bold.cyan(
+      `\n✨  Welcome to ${packageJson.name} v${packageJson.version} ✨\n`
+    )
+  );
+  console.log(chalk.dim(packageJson.description || ""));
+  console.log(
+    chalk.dim("Generate AI-powered PR descriptions from your git changes.\n")
+  );
+  console.log(chalk.dim("Usage:"));
+  console.log(chalk.dim("  $ pr-desc <command> [options]\n"));
+  console.log(chalk.dim("Commands:"));
+  console.log(
+    chalk.dim("  generate (gen)   Generate PR description from git changes")
+  );
+  console.log(
+    chalk.dim("  commit          Generate an AI conventional commit message")
+  );
+  console.log(chalk.dim("  init            Interactive setup wizard"));
+  console.log(
+    chalk.dim("  models          List available models for each provider")
+  );
+  console.log(
+    chalk.dim("  config          Manage configuration and API keys\n")
+  );
+  console.log(chalk.dim("Options:"));
+  console.log(chalk.dim("  -v, --version   Show version number"));
+  console.log(chalk.dim("  -h, --help      Show help\n"));
+  console.log(
+    chalk.dim("Run 'pr-desc <command> --help' for command-specific options.\n")
+  );
+  process.exit(0);
+}
+
 // Get program metadata from package.json
 program
   .name(packageJson.name)
