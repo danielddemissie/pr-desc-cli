@@ -16,3 +16,15 @@ export function maskApiKey(apiKey: string, visibleChars = 4): string {
 
   return `${startVisible}${maskedPart}${endVisible}`;
 }
+
+/**
+ * Formats a commit message by trimming whitespace and removing surrounding quotes.
+ * @param message The commit message to format.
+ * @returns The formatted commit message.
+ */
+export function formatCommitMessage(message: string): string {
+  return message
+    .split(/\r?\n/)[0]
+    .trim()
+    .replace(/^['"`]|['"`]$/g, "");
+}

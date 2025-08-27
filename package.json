@@ -17,7 +17,8 @@
     "release:patch": "npm version patch",
     "release:minor": "npm version minor",
     "release:major": "npm version major",
-    "postversion": "git push --tags && gh release create $(git describe --tags --abbrev=0) --generate-notes"
+    "postversion": "git push --tags && gh release create $(git describe --tags --abbrev=0) --generate-notes",
+    "dev-flow": "sh scripts/dev.sh"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.0.0",
