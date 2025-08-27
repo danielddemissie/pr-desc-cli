@@ -11,9 +11,10 @@ An intelligent command-line interface (CLI) tool designed to streamline your dev
 - 📋 **Model Transparency**: Easily list and select from a range of supported AI models for each provider.
 - ✨ **Custom Template Files**: Provide your own Markdown file as a template for highly tailored PR descriptions.
 - 🚀 **Direct PR Creation**: Automatically **create or update GitHub Pull Requests** directly from the CLI populated with AI-generated descriptions.
+- ✍️ **AI Commit Messages**: Generate Conventional Commit messages automatically during PR creation or via a standalone command.
 - 👀 **Preview & Regenerate**: When generating PR descriptions, preview the content first, then decide whether to regenerate, proceed, or cancel.
-- 🔧 **Robust & Reliable**: Built with TypeScript for enhanced type safety and maintainability.
 - 🧪 **Dry Run Mode for Generation**: Preview AI-generated PR descriptions without actually creating a PR or consuming API quotas.
+- 🔧 **Robust & Reliable**: Built with TypeScript for enhanced type safety and maintainability.
 
 ## Installation
 
@@ -49,11 +50,17 @@ This method stores your API key securely in a global configuration file (`~/.pr-
 pr-desc config set groq your_groq_api_key_here
 ```
 
-You can verify your stored configuration at any time:
+You can verify your stored configuration at any time (API keys are masked by default):
 
 ```bash
-pr-desc config show
+pr-desc config show  # masked api keys
+
+# Unmask (shows real key values)
+pr-desc config show --unmask
+pr-desc config show -u
 ```
+
+API keys are now displayed in masked form unless you explicitly pass `--unmask` / `-u`.
 
 ### Option 2: Use Local Models with Ollama
 
@@ -122,7 +129,18 @@ You can seamlessly integrate `pr-desc` with the [GitHub CLI](https://cli.github.
 pr-desc gen --gh-pr
 ```
 
-🆒 **Cool addition**: If issues occur (like uncommitted changes or a branch not pushed to origin), `pr-desc` will guide you through them.
+During this interactive flow, if uncommitted changes are found you can:
+
+- Auto-generate an AI Conventional Commit message
+- Manually enter a message
+- Stash or cancel
+
+In addition to auto-generate commit message here on generate now there's separate commit command you can see [commit](#generate-ai-conventional-commit-message-standalone) section for more
+
+🆒 **Cool additions**:
+
+- If issues occur (like uncommitted changes or a branch not pushed to origin), `pr-desc` will guide you through them.
+- If you choose to commit during the flow, you may select AI commit generation to produce a Conventional Commit message automatically.
 
 ### List Available Models
 
@@ -140,6 +158,28 @@ Control your `pr-desc` settings and API keys:
 ```bash
 pr-desc config show # Display your entire global configuration
 pr-desc config --help # Show all options
+
+# unmask api keys when showing config
+pr-desc config show --unmask
+pr-desc config show -u
+
+```
+
+### Generate AI Conventional Commit Message (Standalone)
+
+You can now generate conventional Commit message just like generating a PR description with the `commit` command.
+
+```bash
+
+pr-desc commit # stages changes unless specified with --no-stage
+pr-desc commit --type-hint feat # provide your own type hint
+pr-desc commit --no-stage # show suggested commit (don’t auto-commit) same as --dry-run
+pr-desc commit --commit
+
+# Some generic options of pr-desc generate are also available here eg. Providers, models and base branch
+pr-desc commit -p groq -m claude-3.5-sonnet
+pr-desc commit -b develop
+
 ```
 
 ## Available Templates
