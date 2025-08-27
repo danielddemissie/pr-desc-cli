@@ -10,6 +10,7 @@ import { input, select, password, confirm } from "@inquirer/prompts";
 import { join, dirname } from "path";
 
 import { generatePRDescription } from "./pr-generator.js";
+import { generateConventionalCommitMessage } from "./commit-generator.js";
 import {
   getGitChanges,
   createPR,
@@ -198,13 +199,66 @@ program
 
               switch (action) {
                 case "commit":
-                  const commitMessage = await input({
-                    message: "Enter a commit message:",
-                    default: "chore: prepare for PR",
+                  const commitOptions = await select({
+                    message: "Commit message mode:",
+                    choices: [
+                      { name: "Manual input", value: "manual" },
+                      { name: "AI (Conventional Commit)", value: "ai" },
+                    ],
+                    default: "manual",
                   });
+
+                  let commitMessage: string;
+                  if (commitOptions === "ai") {
+                    try {
+                      spinner.start(
+                        "Generating conventional commit message with AI..."
+                      );
+
+                      await runGitCommand(["add", "."]);
+                      const stagedChanges = await getGitChanges(
+                        options.base,
+                        Number.parseInt(options.maxFiles)
+                      );
+                      commitMessage = await generateConventionalCommitMessage(
+                        stagedChanges,
+                        {
+                          provider: options.provider,
+                          model: options.model,
+                        }
+                      );
+                      spinner.succeed("AI commit message generated.");
+                      const accept = await confirm({
+                        message: `Use generated commit message: \n${commitMessage}\n?`,
+                        default: true,
+                      });
+                      if (!accept) {
+                        commitMessage = await input({
+                          message: "Enter a commit message:",
+                          default: commitMessage,
+                        });
+                      }
+                    } catch (aiErr) {
+                      spinner.warn(
+                        `AI commit generation failed: ${
+                          aiErr instanceof Error ? aiErr.message : aiErr
+                        }. Falling back to manual input.`
+                      );
+                      commitMessage = await input({
+                        message: "Enter a commit message:",
+                        default: "chore: prepare for PR",
+                      });
+                    }
+                  } else {
+                    commitMessage = await input({
+                      message: "Enter a commit message:",
+                      default: "chore: prepare for PR",
+                    });
+                    await runGitCommand(["add", "."]);
+                  }
+
                   spinner.start("Committing changes...");
                   try {
-                    await runGitCommand(["add", "."]);
                     await runGitCommand(["commit", "-m", commitMessage]);
                     spinner.succeed(
                       "Changes committed. Continuing PR creation..."
@@ -478,6 +532,133 @@ program
       default:
         console.error(chalk.red("Unknown action. Use: set, get, or show"));
         process.exit(1);
+    }
+  });
+
+// Separate commit command
+program
+  .command("commit")
+  .description(
+    "Generate an AI conventional commit message (optionally commit immediately)"
+  )
+  .option("-b, --base <branch>", "Base branch to compare against")
+  .option("-p, --provider <provider>", "AI provider (groq, local)")
+  .option("-m, --model <model>", "AI model to use")
+  .option("--max-files <number>", "Maximum number of files to analyze", "20")
+  .option("--type-hint <type>", "Hint commit type (feat, fix, chore, etc.)")
+  .option(
+    "--no-stage",
+    "Do not auto-stage all changes before generating the message"
+  )
+  .option(
+    "--commit",
+    "Automatically create the commit after confirmation",
+    false
+  )
+  .action(async (options) => {
+    const spinner = ora("Preparing commit context...").start();
+    try {
+      const cfg = loadConfig();
+      options.provider = options.provider || cfg.defaultProvider || "groq";
+      options.base = options.base || cfg.defaultBaseBranch || "main";
+      options.model =
+        options.model ||
+        SUPPORTED_MODELS[options.provider as keyof typeof SUPPORTED_MODELS]
+          .default;
+
+      // Optionally stage all changes
+      const status = await runGitCommand(["status", "--porcelain"]);
+      if (!status.trim()) {
+        spinner.fail("No changes to commit.");
+        return;
+      }
+
+      if (options.stage !== false) {
+        spinner.text = "Staging changes...";
+        await runGitCommand(["add", "."]);
+      }
+
+      spinner.text = "Analyzing changes...";
+      const changes = await getGitChanges(
+        options.base,
+        Number.parseInt(options.maxFiles)
+      );
+
+      spinner.text = "Generating commit message with AI...";
+      let message = await generateConventionalCommitMessage(changes, {
+        provider: options.provider,
+        model: options.model,
+        typeHint: options.typeHint,
+        maxFiles: Number.parseInt(options.maxFiles),
+      });
+      spinner.succeed("Commit message generated.");
+
+      let accept = false;
+      while (!accept) {
+        console.log("\n" + chalk.blue("═".repeat(60)));
+        console.log(chalk.bold.cyan("🤖 Suggested Conventional Commit"));
+        console.log(chalk.blue("═".repeat(60)));
+        console.log("\n" + chalk.bold(message) + "\n");
+        console.log(chalk.blue("═".repeat(60)));
+
+        accept = await confirm({
+          message: "Use this commit message?",
+          default: true,
+        });
+        if (!accept) {
+          const action = await select({
+            message: "What next?",
+            choices: [
+              { name: "Regenerate", value: "regen" },
+              { name: "Edit manually", value: "edit" },
+              { name: "Cancel", value: "cancel" },
+            ],
+          });
+          if (action === "regen") {
+            spinner.start("Re-generating commit message...");
+            message = await generateConventionalCommitMessage(changes, {
+              provider: options.provider,
+              model: options.model,
+              typeHint: options.typeHint,
+              maxFiles: Number.parseInt(options.maxFiles),
+            });
+            spinner.succeed("New commit message generated.");
+            continue;
+          } else if (action === "edit") {
+            message = await input({
+              message: "Edit commit message:",
+              default: message,
+            });
+            accept = true;
+          } else {
+            console.log(chalk.yellow("Cancelled."));
+            return;
+          }
+        }
+      }
+
+      if (
+        options.commit ||
+        (await confirm({ message: "Create commit now?", default: true }))
+      ) {
+        spinner.start("Creating commit...");
+        try {
+          await runGitCommand(["commit", "-m", message]);
+          spinner.succeed("Commit created.");
+        } catch (err) {
+          spinner.fail(
+            `Failed to commit: ${err instanceof Error ? err.message : err}`
+          );
+          return;
+        }
+      } else {
+        console.log(message); // allow piping
+      }
+    } catch (err) {
+      spinner.fail(
+        `Error: ${err instanceof Error ? err.message : "Unknown error"}`
+      );
+      process.exit(1);
     }
   });
 
