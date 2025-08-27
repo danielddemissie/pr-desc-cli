@@ -7,11 +7,7 @@ import type {
   CommitInfo,
   FileStatus,
 } from "./types.ts";
-import {
-  GhError,
-  GhUncommittedChangesError,
-  GhNeedsPushError,
-} from "./types.js";
+import { GhError, GhNeedsPushError } from "./types.js";
 
 const git = simpleGit();
 
@@ -183,9 +179,7 @@ function runGhCommand(args: string[], body?: string): Promise<string> {
       if (code === 0) {
         resolve(stdout.trim());
       } else {
-        if (stderr.includes("uncommitted changes")) {
-          reject(new GhUncommittedChangesError());
-        } else if (stderr.includes("must first push the current branch")) {
+        if (stderr.includes("must first push the current branch")) {
           reject(new GhNeedsPushError());
         } else {
           reject(new GhError(`gh command failed with code ${code}: ${stderr}`));

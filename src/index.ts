@@ -23,7 +23,7 @@ import { getSupportedModels, SUPPORTED_MODELS } from "./models.js";
 import { loadConfig, setApiKey, getApiKey, saveConfig } from "./config.js";
 import { maskApiKey } from "./utils.js";
 import { PackageJson } from "./types.js";
-import { GhUncommittedChangesError, GhNeedsPushError } from "./types.js";
+import { GhNeedsPushError } from "./types.js";
 
 config();
 
@@ -181,6 +181,67 @@ program
         }
 
         if (proceed) {
+          try {
+            spinner.start("Checking for uncommitted changes...");
+            const gitStatus = await runGitCommand(["status", "--porcelain"]);
+            if (gitStatus.trim().length > 0) {
+              spinner.warn(`Unstaged changes found:\n${gitStatus}.\n`);
+
+              const action = await select({
+                message: `What would you like to do?`,
+                choices: [
+                  { name: "Commit changes", value: "commit" },
+                  { name: "Stash changes and continue", value: "stash" },
+                  { name: "Cancel PR creation", value: "cancel" },
+                ],
+              });
+
+              switch (action) {
+                case "commit":
+                  const commitMessage = await input({
+                    message: "Enter a commit message:",
+                    default: "chore: prepare for PR",
+                  });
+                  spinner.start("Committing changes...");
+                  try {
+                    await runGitCommand(["add", "."]);
+                    await runGitCommand(["commit", "-m", commitMessage]);
+                    spinner.succeed(
+                      "Changes committed. Continuing PR creation..."
+                    );
+                  } catch (commitError) {
+                    spinner.fail(`Failed to commit changes: ${commitError}`);
+                    return;
+                  }
+
+                  break;
+                case "stash":
+                  spinner.start("Stashing uncommitted changes...");
+                  try {
+                    await runGitCommand(["stash"]); // stash the changes
+                    spinner.succeed(
+                      "Changes stashed. Continuing PR creation..."
+                    );
+                  } catch (stashError) {
+                    spinner.fail(`Failed to stash changes: ${stashError}`);
+                    return;
+                  }
+                  break;
+                case "cancel":
+                default:
+                  spinner.info("PR creation cancelled.");
+                  return;
+              }
+            }
+          } catch (error) {
+            spinner.fail(
+              `Error: ${
+                error instanceof Error ? error.message : "Unknown error"
+              }`
+            );
+            process.exit(1);
+          }
+
           const existingPr = await getPRForCurrentBranch(changes.currentBranch);
 
           if (existingPr) {
@@ -198,51 +259,7 @@ program
                 spinner.succeed(`Successfully created PR: ${response}`);
                 break;
               } catch (error) {
-                if (error instanceof GhUncommittedChangesError) {
-                  spinner.warn(
-                    "You have uncommitted changes in your working directory."
-                  );
-                  const action = await select({
-                    message: "What would you like to do?",
-                    choices: [
-                      { name: "Commit changes", value: "commit" },
-                      { name: "Stash changes and continue", value: "stash" },
-                      { name: "Cancel PR creation", value: "cancel" },
-                    ],
-                  });
-
-                  if (action === "commit") {
-                    const commitMessage = await input({
-                      message: "Enter a commit message:",
-                      default: "chore: prepare for PR",
-                    });
-                    spinner.start("Committing changes...");
-                    try {
-                      await runGitCommand(["add", "."]);
-                      await runGitCommand(["commit", "-m", commitMessage]);
-                      spinner.succeed(
-                        "Changes committed. Retrying PR creation..."
-                      );
-                    } catch (commitError) {
-                      spinner.fail(`Failed to commit changes: ${commitError}`);
-                      break;
-                    }
-                  } else if (action === "stash") {
-                    spinner.start("Stashing uncommitted changes...");
-                    try {
-                      await runGitCommand(["stash"]); // stash the changes
-                      spinner.succeed(
-                        "Changes stashed. Retrying PR creation..."
-                      );
-                    } catch (stashError) {
-                      spinner.fail(`Failed to stash changes: ${stashError}`);
-                      break;
-                    }
-                  } else {
-                    spinner.info("PR creation cancelled.");
-                    break;
-                  }
-                } else if (error instanceof GhNeedsPushError) {
+                if (error instanceof GhNeedsPushError) {
                   spinner.warn("Your branch is not pushed to origin.");
                   const pushCB = await confirm({
                     message: `Would you like to push branch '${changes.currentBranch}' to origin?`,
@@ -254,7 +271,7 @@ program
                     try {
                       await pushCurrentBranch(changes.currentBranch);
                       spinner.succeed(
-                        "Successfully pushed to origin! Retrying PR creation..."
+                        "Successfully pushed to origin! Continuing PR creation..."
                       );
                     } catch (pushError) {
                       spinner.fail(

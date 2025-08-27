@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 import { config } from "dotenv";
+import { maskApiKey } from "./utils.js";
 
 const CONFIG_DIR = join(homedir(), ".pr-desc");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
@@ -16,7 +17,7 @@ export interface Config {
   };
 }
 
-export function loadConfig(): Config {
+export function loadConfig(unmask?: boolean): Config {
   // global config
   if (existsSync(ENV_FILE)) {
     config({ path: ENV_FILE });
@@ -34,6 +35,14 @@ export function loadConfig(): Config {
     }
   }
 
+  if (userConfig.apiKeys && !unmask) {
+    userConfig.apiKeys = Object.fromEntries(
+      Object.entries(userConfig.apiKeys).map(([key, value]) => [
+        key,
+        maskApiKey(value),
+      ])
+    );
+  }
   return userConfig;
 }
 
