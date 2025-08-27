@@ -2,12 +2,6 @@ import { generateText } from "ai";
 import type { GitChanges, GenerateOptions } from "./types.js";
 import { getAIModel } from "./models.js";
 
-/**
- * Generate a Pull Request description based on the provided git changes and options.
- * @param changes The git changes to include in the PR description.
- * @param options The options to customize the PR description generation.
- * @returns The generated PR description.
- */
 export async function generatePRDescription(
   changes: GitChanges,
   options: GenerateOptions
@@ -74,10 +68,10 @@ ${
 `;
 
   const finalAiInstruction = `
-  Do *not* include any meta information or explanations — just the PR content
-  Do **not** include labels like "PR Description:", "Title:", or meta text — only the final PR content.
-  Do *not* include any labels like "Here's a suggested PR description", "Feel free to modify it"
-  `;
+Do *not* include any meta information or explanations — just the PR content
+Do **not** include labels like "PR Description:", "Title:", or meta text — only the final PR content.
+Do *not* include any labels like "Here's a suggested PR description", "Feel free to modify it"
+`;
 
   // Check for custom template content
   if (customTemplateContent) {
