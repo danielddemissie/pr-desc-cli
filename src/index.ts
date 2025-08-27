@@ -199,8 +199,7 @@ program
 
               switch (action) {
                 case "commit":
-                  // Ask if user wants AI generated conventional commit
-                  const commitMode = await select({
+                  const commitOptions = await select({
                     message: "Commit message mode:",
                     choices: [
                       { name: "Manual input", value: "manual" },
@@ -210,14 +209,13 @@ program
                   });
 
                   let commitMessage: string;
-                  if (commitMode === "ai") {
+                  if (commitOptions === "ai") {
                     try {
                       spinner.start(
                         "Generating conventional commit message with AI..."
                       );
-                      // Reuse existing changes (they reflect unstaged diff). We need staged content, so add first.
+
                       await runGitCommand(["add", "."]);
-                      // Get fresh changes context after staging
                       const stagedChanges = await getGitChanges(
                         options.base,
                         Number.parseInt(options.maxFiles)
