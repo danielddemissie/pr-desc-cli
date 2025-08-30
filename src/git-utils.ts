@@ -19,23 +19,39 @@ const git = simpleGit();
  */
 export async function getGitChanges(
   baseBranch: string,
-  maxFiles: number
+  maxFiles: number,
+  mode: "branch" | "staged" = "branch"
 ): Promise<GitChanges> {
   try {
     await git.fetch();
     const currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
-    const diffSummary = await git.diffSummary([`${baseBranch}...HEAD`]);
-    const log = await git.log({
-      from: baseBranch,
-      to: "HEAD",
-      maxCount: 10,
-    });
+    // Determine diff arguments based on mode
+    let diffRangeArg = `${baseBranch}...HEAD`;
+    let log: any; // using 'any' to accommodate simple-git readonly array typing
 
-    const numstatOutput = await git.raw([
-      "diff",
-      `${baseBranch}...HEAD`,
-      "--numstat",
-    ]);
+    if (mode === "branch") {
+      log = await git.log({
+        from: baseBranch,
+        to: "HEAD",
+        maxCount: 10,
+      });
+    } else {
+      // staged: use staged commits context = just last few commits on current branch
+      log = await git.log({
+        maxCount: 10,
+      });
+    }
+
+    const diffSummary =
+      mode === "branch"
+        ? await git.diffSummary([diffRangeArg])
+        : await git.diffSummary(["--cached"]);
+
+    const numstatArgs =
+      mode === "branch"
+        ? ["diff", diffRangeArg, "--numstat"]
+        : ["diff", "--cached", "--numstat"];
+    const numstatOutput = await git.raw(numstatArgs);
     const numstatMap: Record<string, { additions: number; deletions: number }> =
       {};
     numstatOutput.split("\n").forEach((line) => {
@@ -56,7 +72,11 @@ export async function getGitChanges(
 
       let patch: string | null = null;
       try {
-        patch = await git.diff([`${baseBranch}...HEAD`, "--", file.file]);
+        patch = await git.diff([
+          ...(mode === "branch" ? [diffRangeArg] : ["--cached"]),
+          "--",
+          file.file,
+        ]);
       } catch {
         patch = null;
       }
@@ -70,7 +90,7 @@ export async function getGitChanges(
       });
     }
 
-    const commits: CommitInfo[] = log.all.map((commit) => ({
+    const commits: CommitInfo[] = (log?.all || []).map((commit: any) => ({
       hash: commit.hash,
       message: commit.message,
       author: commit.author_name || "Unknown",
@@ -87,6 +107,7 @@ export async function getGitChanges(
         deletions: diffSummary.deletions,
         filesChanged: diffSummary.files.length,
       },
+      mode,
     };
   } catch (error) {
     throw new Error(

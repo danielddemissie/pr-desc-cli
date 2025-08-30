@@ -262,7 +262,8 @@ program
                       await runGitCommand(["add", "."]);
                       const stagedChanges = await getGitChanges(
                         options.base,
-                        Number.parseInt(options.maxFiles)
+                        Number.parseInt(options.maxFiles),
+                        "staged"
                       );
                       commitMessage = await generateConventionalCommitMessage(
                         stagedChanges,
@@ -627,7 +628,8 @@ program
       spinner.text = "Analyzing changes...";
       const changes = await getGitChanges(
         options.base,
-        Number.parseInt(options.maxFiles)
+        Number.parseInt(options.maxFiles),
+        "staged"
       );
 
       spinner.text = "Generating commit message with AI...";

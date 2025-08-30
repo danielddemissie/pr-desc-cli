@@ -4,6 +4,7 @@ export interface GitChanges {
   files: FileChange[];
   commits: CommitInfo[];
   stats: GitStats;
+  mode?: "branch" | "staged"; // added this for commit
 }
 
 export interface FileChange {
