@@ -11,12 +11,6 @@ import { GhError, GhNeedsPushError } from "./types.js";
 
 const git = simpleGit();
 
-/**
- * Get the git changes between the current branch and a specified base branch.
- * @param baseBranch Base branch to compare against
- * @param maxFiles Maximum number of files to include in the changes
- * @returns A promise that resolves to an object containing git changes information.
- */
 export async function getGitChanges(
   baseBranch: string,
   maxFiles: number,
