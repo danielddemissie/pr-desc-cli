@@ -25,9 +25,9 @@ export async function getGitChanges(
   try {
     await git.fetch();
     const currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
-    // Determine diff arguments based on mode
+    // mode base
     let diffRangeArg = `${baseBranch}...HEAD`;
-    let log: any; // using 'any' to accommodate simple-git readonly array typing
+    let log: any;
 
     if (mode === "branch") {
       log = await git.log({
@@ -36,7 +36,6 @@ export async function getGitChanges(
         maxCount: 10,
       });
     } else {
-      // staged: use staged commits context = just last few commits on current branch
       log = await git.log({
         maxCount: 10,
       });
