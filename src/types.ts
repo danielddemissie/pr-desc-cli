@@ -4,6 +4,7 @@ export interface GitChanges {
   files: FileChange[];
   commits: CommitInfo[];
   stats: GitStats;
+  mode?: "branch" | "staged"; // added this for commit
 }
 
 export interface FileChange {
@@ -42,6 +43,7 @@ export interface GenerateOptions {
   customTemplateContent?: string;
   maxFiles?: number;
   maxDiffLines?: number;
+  refineFrom?: string;
 }
 
 export interface SimpleGitFile {
@@ -84,6 +86,36 @@ export interface CommitMessageOptions {
   maxFiles?: number;
   maxDiffLines?: number;
   typeHint?: string;
+  refineFrom?: string;
+}
+
+export interface CLIGenerateOptions {
+  base?: string;
+  provider?: string;
+  model?: string;
+  template?: string;
+  templateFile?: string;
+  maxFiles?: string; // will parse to number
+  dryRun?: boolean;
+  ghPr?: boolean;
+}
+
+export interface CLIModelsOptions {
+  provider?: string;
+}
+
+export interface CLIConfigOptions {
+  unmask?: boolean;
+}
+
+export interface CLICommitOptions {
+  base?: string;
+  provider?: string;
+  model?: string;
+  maxFiles?: string;
+  typeHint?: string;
+  stage?: boolean;
+  commit?: boolean;
 }
 
 // Errors

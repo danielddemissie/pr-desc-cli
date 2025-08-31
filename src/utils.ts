@@ -1,10 +1,3 @@
-/**
- * Masks the middle part of an API key, showing only the first and last 4 characters.
- * @param apiKey The API key to mask.
- * @param visibleChars The number of characters to show at the start and end of the API key.
- *
- * @returns The masked API key.
- */
 export function maskApiKey(apiKey: string, visibleChars = 4): string {
   if (apiKey.length <= visibleChars * 2) {
     return apiKey;
@@ -17,14 +10,59 @@ export function maskApiKey(apiKey: string, visibleChars = 4): string {
   return `${startVisible}${maskedPart}${endVisible}`;
 }
 
-/**
- * Formats a commit message by trimming whitespace and removing surrounding quotes.
- * @param message The commit message to format.
- * @returns The formatted commit message.
- */
 export function formatCommitMessage(message: string): string {
   return message
     .split(/\r?\n/)[0]
     .trim()
     .replace(/^['"`]|['"`]$/g, "");
+}
+
+export function ensureConventionalCommit(
+  message: string,
+  typeHint?: string
+): string {
+  const validTypes = [
+    "feat",
+    "fix",
+    "docs",
+    "style",
+    "refactor",
+    "perf",
+    "test",
+    "chore",
+    "build",
+    "ci",
+  ];
+  const clean = message.trim().replace(/\.$/, "");
+  const conventionalRegex = new RegExp(
+    `^(${validTypes.join("|")})(\([^)]*\))?:\\s+.+`,
+    "i"
+  );
+
+  if (conventionalRegex.test(clean)) {
+    const parts = clean.split(/:\s+/);
+    const header = parts.shift() ?? "";
+    let summary = parts.join(": ") || "";
+    if (summary.length > 72) {
+      if (summary.includes("Here's a suggested commit message")) {
+        summary = summary
+          .replace("Here's a suggested commit message", "")
+          .trim();
+      }
+    }
+    summary = summary.slice(0, 72).trim();
+    return `${header}: ${summary}`;
+  }
+
+  const hint = typeHint && validTypes.includes(typeHint) ? typeHint : "chore";
+  let summary = clean
+    .replace(/^[^a-zA-Z0-9]+/, "")
+    .replace(new RegExp(`^(${validTypes.join("|")})[:\s-]+`, "i"), "")
+    .trim();
+
+  summary = summary.replace(/^[A-Z]/, (c) => c.toLowerCase());
+  if (!summary) summary = "update";
+  if (summary.length > 72) summary = summary.slice(0, 72).trim();
+
+  return `${hint}: ${summary}`;
 }

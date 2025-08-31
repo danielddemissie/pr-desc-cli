@@ -7,32 +7,27 @@ export async function generatePRDescription(
   options: GenerateOptions
 ): Promise<string> {
   const model = await getAIModel(options.provider, options.model);
-  const prompt = buildPrompt(
-    changes,
-    options.template,
-    options.customTemplateContent,
-    options.maxFiles,
-    options.maxDiffLines
-  );
+  const maxFiles = options.maxFiles ?? 20;
+  const maxDiffLines = options.maxDiffLines ?? 500;
 
-  const { text } = await generateText({
-    model,
-    prompt,
-    temperature: 0.7,
-    maxTokens: 1000,
-  });
+  const fileSummaries = changes.files
+    .slice(0, maxFiles)
+    .map((f) => {
+      const patch = f.patch
+        ? f.patch.slice(0, maxDiffLines) +
+          (f.patch.length > maxDiffLines ? "..." : "")
+        : "";
+      return `FILE: ${f.path} STATUS: ${f.status} +${f.additions} -${f.deletions}\n${patch}`;
+    })
+    .join("\n\n");
 
-  return text;
-}
-
-function buildPrompt(
-  changes: GitChanges,
-  template: string,
-  customTemplateContent?: string,
-  maxFiles: number = 20,
-  maxDiffLines: number = 500
-): string {
-  const gitDataSection = `
+  function buildPrompt(
+    changes: GitChanges,
+    template: string,
+    fileSummaries: string,
+    customTemplateContent?: string
+  ): string {
+    const gitDataSection = `
 ## Git Context
 **Base Branch:** ${changes.baseBranch}  
 **Current Branch:** ${changes.currentBranch}  
@@ -45,37 +40,19 @@ ${changes.commits
   .map((commit) => `- ${commit.message.trim()} (${commit.hash.slice(0, 7)})`)
   .join("\n")}
 
-### File Changes
-${changes.files
-  .slice(0, maxFiles)
-  .map((file) => {
-    const patch = file.patch
-      ? file.patch.slice(0, maxDiffLines) +
-        (file.patch.length > maxDiffLines ? "..." : "")
-      : "";
-    return `**${file.path}** — Status: ${file.status}, +${file.additions}, -${
-      file.deletions
-    }
-${patch ? `\`\`\`diff\n${patch}\n\`\`\`` : ""}`;
-  })
-  .join("\n\n")}
-
-${
-  changes.files.length > maxFiles
-    ? `\n...and ${changes.files.length - maxFiles} more files changed.`
-    : ""
-}
+### File Changes summary
+${fileSummaries}
 `;
 
-  const finalAiInstruction = `
+    const finalAiInstruction = `
 Do *not* include any meta information or explanations — just the PR content
 Do **not** include labels like "PR Description:", "Title:", or meta text — only the final PR content.
 Do *not* include any labels like "Here's a suggested PR description", "Feel free to modify it"
 `;
 
-  // Check for custom template content
-  if (customTemplateContent) {
-    return `
+    // Check for custom template content
+    if (customTemplateContent) {
+      return `
 You are an expert software engineer writing a Pull Request description.
 Analyze the following git changes and generate a PR description that strictly adheres to the provided custom Markdown template.
 Fill in the sections of the template using the git changes data.
@@ -88,10 +65,10 @@ ${customTemplateContent}
 Please generate the PR description by filling the custom template based on the git changes provided.
 ${finalAiInstruction}
 `;
-  }
+    }
 
-  const templates = {
-    standard: `${gitDataSection}
+    const templates = {
+      standard: `${gitDataSection}
 
 You are an expert software engineer.  
 Write a **standard** **production-ready** Pull Request description in clean Markdown.
@@ -135,7 +112,7 @@ Follow this exact structure:
 [Optional: Link to Jira ticket, GitHub issue, or related PR.]
 `,
 
-    detailed: `${gitDataSection}
+      detailed: `${gitDataSection}
 
 You are an expert software engineer.  
 Write a **production-ready** and **comprehensive** Pull Request description in clean Markdown.  
@@ -165,7 +142,7 @@ Follow this exact structure:
 [Optional extra context, performance considerations, or known limitations.]
 `,
 
-    minimal: `${gitDataSection}
+      minimal: `${gitDataSection}
 
 You are an expert software engineer.  
 Write a **concise** and **minimal** Pull Request description in clean Markdown.  
@@ -182,7 +159,75 @@ Follow this exact structure:
 ## Key Changes
 [Bullet points summarizing the main changes.]
 `,
-  };
+    };
 
-  return templates[template as keyof typeof templates] || templates.standard;
+    return templates[template as keyof typeof templates] || templates.standard;
+  }
+
+  const prompt = buildPrompt(
+    changes,
+    options.template,
+    fileSummaries,
+    options.customTemplateContent
+  );
+
+  if (options.refineFrom) {
+    const prev = options.refineFrom.trim();
+    const refinePrompt = `Previous PR description:
+"
+${prev}
+"
+
+Based on the git diff below, improve or correct the suggestion to make it more clear, complete, and professional. Return ONLY the corrected PR content (no explanation):
+<diff>
+${fileSummaries}
+</diff>
+
+Rules:
+- Do not include any meta information or explanations — just the PR content
+- Do not include labels like "PR Description:", "Title:", or meta text — only the final PR content.
+- Do not include any labels like "Here's a suggested PR description", "Feel free to modify it"
+${options.template ? `- Follow the ${options.template} template structure` : ""}
+${
+  options.customTemplateContent
+    ? `- Follow the provided custom template structure`
+    : ""
+}
+`;
+    try {
+      const res = await generateText({
+        model,
+        prompt: refinePrompt,
+        temperature: 0.15,
+        maxTokens: 800,
+      });
+      const out = (
+        (res as any)?.text ??
+        (res as any)?.output?.[0]?.content ??
+        ""
+      ).trim();
+      return out || prev;
+    } catch (err) {
+      // just fallback to original prompt
+      console.error("Error during refine:", err);
+      return prev;
+    }
+  }
+
+  try {
+    const res = await generateText({
+      model,
+      prompt,
+      temperature: 0.3,
+      maxTokens: 800,
+    });
+    return (
+      (res as any)?.text ??
+      (res as any)?.output?.[0]?.content ??
+      "Error: No response from AI"
+    ).trim();
+  } catch (err) {
+    console.error("Error during PR generation:", err);
+    return "Error: Unable to generate PR description";
+  }
 }

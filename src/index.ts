@@ -23,8 +23,14 @@ import {
 import { getSupportedModels, SUPPORTED_MODELS } from "./models.js";
 import { loadConfig, setApiKey, getApiKey, saveConfig } from "./config.js";
 import { maskApiKey } from "./utils.js";
-import { PackageJson } from "./types.js";
-import { GhNeedsPushError } from "./types.js";
+import {
+  PackageJson,
+  GhNeedsPushError,
+  CLIGenerateOptions,
+  CLIModelsOptions,
+  CLIConfigOptions,
+  CLICommitOptions,
+} from "./types.js";
 
 config();
 
@@ -119,7 +125,7 @@ program
     "Create or update a PR on GitHub with the generated description using the GitHub CLI",
     false
   )
-  .action(async (options) => {
+  .action(async (options: CLIGenerateOptions) => {
     const spinner = ora("Analyzing git changes...").start();
 
     try {
@@ -140,7 +146,7 @@ program
 
       const changes = await getGitChanges(
         options.base,
-        Number.parseInt(options.maxFiles)
+        Number.parseInt(options.maxFiles || "20")
       );
 
       if (!changes.files.length) {
@@ -216,6 +222,7 @@ program
                 model: options.model,
                 template: options.template,
                 customTemplateContent: customTemplateContent,
+                refineFrom: description,
               });
               spinner.succeed("PR description re-generated!");
             } else {
@@ -262,7 +269,8 @@ program
                       await runGitCommand(["add", "."]);
                       const stagedChanges = await getGitChanges(
                         options.base,
-                        Number.parseInt(options.maxFiles)
+                        Number.parseInt(options.maxFiles || "20"),
+                        "staged"
                       );
                       commitMessage = await generateConventionalCommitMessage(
                         stagedChanges,
@@ -426,7 +434,7 @@ program
       "Let's configure your preferences for generating PR descriptions.\n"
     );
 
-    const currentConfig = loadConfig();
+    const currentConfig = loadConfig(true);
 
     const defaultProvider = await select({
       message: "Which AI provider would you like to use by default?",
@@ -491,7 +499,7 @@ program
   .command("models")
   .description("List available models for each provider")
   .option("-p, --provider <provider>", "Show models for specific provider")
-  .action((options) => {
+  .action((options: CLIModelsOptions) => {
     if (options.provider) {
       try {
         const models = getSupportedModels(options.provider);
@@ -541,7 +549,7 @@ program
   .argument("[provider]", "Provider name (groq, local)")
   .argument("[value]", "API key value (for set action)")
   .option("-u, --unmask", "Unmask the API key", false)
-  .action((action, provider, value, options) => {
+  .action((action, provider, value, options: CLIConfigOptions) => {
     const { unmask } = options;
     switch (action) {
       case "set":
@@ -601,7 +609,7 @@ program
     "Automatically create the commit after confirmation",
     false
   )
-  .action(async (options) => {
+  .action(async (options: CLICommitOptions) => {
     const spinner = ora("Preparing commit context...").start();
     try {
       const cfg = loadConfig();
@@ -627,7 +635,8 @@ program
       spinner.text = "Analyzing changes...";
       const changes = await getGitChanges(
         options.base,
-        Number.parseInt(options.maxFiles)
+        Number.parseInt(options.maxFiles || "20"),
+        "staged"
       );
 
       spinner.text = "Generating commit message with AI...";
@@ -635,7 +644,7 @@ program
         provider: options.provider,
         model: options.model,
         typeHint: options.typeHint,
-        maxFiles: Number.parseInt(options.maxFiles),
+        maxFiles: Number.parseInt(options.maxFiles || "20"),
       });
       spinner.succeed("Commit message generated.");
 
@@ -666,7 +675,8 @@ program
               provider: options.provider,
               model: options.model,
               typeHint: options.typeHint,
-              maxFiles: Number.parseInt(options.maxFiles),
+              maxFiles: Number.parseInt(options.maxFiles || "20"),
+              refineFrom: message,
             });
             spinner.succeed("New commit message generated.");
             continue;

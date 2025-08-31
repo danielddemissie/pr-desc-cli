@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import type { GitChanges, CommitMessageOptions } from "./types.js";
 import { getAIModel } from "./models.js";
-import { formatCommitMessage } from "./utils.js";
+import { formatCommitMessage, ensureConventionalCommit } from "./utils.js";
 
 export async function generateConventionalCommitMessage(
   changes: GitChanges,
@@ -9,7 +9,7 @@ export async function generateConventionalCommitMessage(
 ): Promise<string> {
   const model = await getAIModel(options.provider, options.model);
   const maxFiles = options.maxFiles ?? 20;
-  const maxDiffLines = options.maxDiffLines ?? 400;
+  const maxDiffLines = options.maxDiffLines ?? 500;
 
   const fileSummaries = changes.files
     .slice(0, maxFiles)
@@ -25,8 +25,6 @@ export async function generateConventionalCommitMessage(
   function buildPrompt(
     changes: GitChanges,
     options: CommitMessageOptions,
-    maxDiffLines: number = 500,
-    maxFiles: number = 20,
     fileSummaries: string
   ): string {
     const gitDataSection = `
@@ -42,26 +40,9 @@ ${changes.commits
   .map((commit) => `- ${commit.message.trim()} (${commit.hash.slice(0, 7)})`)
   .join("\n")}
 
-### File Changes
-${changes.files
-  .slice(0, maxFiles)
-  .map((file) => {
-    const patch = file.patch
-      ? file.patch.slice(0, maxDiffLines) +
-        (file.patch.length > maxDiffLines ? "..." : "")
-      : "";
-    return `**${file.path}** — Status: ${file.status}, +${file.additions}, -${
-      file.deletions
-    }
-${patch ? `\`\`\`diff\n${patch}\n\`\`\`` : ""}`;
-  })
-  .join("\n\n")}
-
-${
-  changes.files.length > maxFiles
-    ? `\n...and ${changes.files.length - maxFiles} more files changed.`
-    : ""
-}`;
+### File Changes (Summarized)
+${fileSummaries}
+`;
 
     const finalAiInstructionForCommit = `
 Do *not* include any meta information or explanations — just the commit message
@@ -87,19 +68,68 @@ ${options.typeHint ? `Preferred type (hint): ${options.typeHint}` : ""}`;
 
     return `
 Git Changes: ${gitDataSection}
-File summary: ${fileSummaries}
 Base Prompt: ${basePrompt}
 Final Instruction: ${finalAiInstructionForCommit}
 `;
   }
 
-  const prompt = buildPrompt(changes, options, 500, 20, fileSummaries);
-  const { text } = await generateText({
-    model,
-    prompt,
-    temperature: 0.3,
-    maxTokens: 60,
-  });
+  const prompt = buildPrompt(changes, options, fileSummaries);
 
-  return formatCommitMessage(text);
+  // refine
+  if (options.refineFrom) {
+    const prev = formatCommitMessage(options.refineFrom);
+    const refinePrompt = `Previous commit suggestion: "${prev}"
+
+Based on the staged git diff below, improve or correct the suggestion so it strictly follows Conventional Commits and accurately reflects the changes. Return ONLY the corrected commit line (no explanation):
+
+<diff>
+${fileSummaries}
+</diff>
+
+Rules:
+- Use format: <type>(<optional scope>): <short imperative summary>
+- type must be one of: feat, fix, docs, style, refactor, perf, test, chore, build, ci
+- Summary must be <= 72 characters
+- No trailing period
+- Return only the first line (no body or footer)
+${options.typeHint ? `Preferred type (hint): ${options.typeHint}` : ""}
+`;
+
+    try {
+      const res = await generateText({
+        model,
+        prompt: refinePrompt,
+        temperature: 0.15,
+        maxTokens: 80,
+      });
+      const refinedRaw =
+        (res as any)?.text ??
+        (res as any)?.output?.[0]?.content ??
+        (res as any)?.choices?.[0]?.text ??
+        "";
+      const cleaned = formatCommitMessage(refinedRaw || prev);
+      return ensureConventionalCommit(cleaned, options.typeHint);
+    } catch (err) {
+      // just return the previous
+      return ensureConventionalCommit(prev, options.typeHint);
+    }
+  }
+
+  try {
+    const res = await generateText({
+      model,
+      prompt,
+      temperature: 0.3,
+      maxTokens: 80,
+    });
+    const raw =
+      (res as any)?.text ??
+      (res as any)?.output?.[0]?.content ??
+      (res as any)?.choices?.[0]?.text ??
+      "";
+    const cleaned = formatCommitMessage(raw);
+    return ensureConventionalCommit(cleaned, options.typeHint);
+  } catch (err) {
+    throw err;
+  }
 }
