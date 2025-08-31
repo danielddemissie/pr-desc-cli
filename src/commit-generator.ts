@@ -9,7 +9,7 @@ export async function generateConventionalCommitMessage(
 ): Promise<string> {
   const model = await getAIModel(options.provider, options.model);
   const maxFiles = options.maxFiles ?? 20;
-  const maxDiffLines = options.maxDiffLines ?? 600;
+  const maxDiffLines = options.maxDiffLines ?? 500;
 
   const fileSummaries = changes.files
     .slice(0, maxFiles)
@@ -25,8 +25,6 @@ export async function generateConventionalCommitMessage(
   function buildPrompt(
     changes: GitChanges,
     options: CommitMessageOptions,
-    maxDiffLines: number = 500,
-    maxFiles: number = 20,
     fileSummaries: string
   ): string {
     const gitDataSection = `
@@ -42,26 +40,9 @@ ${changes.commits
   .map((commit) => `- ${commit.message.trim()} (${commit.hash.slice(0, 7)})`)
   .join("\n")}
 
-### File Changes
-${changes.files
-  .slice(0, maxFiles)
-  .map((file) => {
-    const patch = file.patch
-      ? file.patch.slice(0, maxDiffLines) +
-        (file.patch.length > maxDiffLines ? "..." : "")
-      : "";
-    return `**${file.path}** — Status: ${file.status}, +${file.additions}, -${
-      file.deletions
-    }
-${patch ? `\`\`\`diff\n${patch}\n\`\`\`` : ""}`;
-  })
-  .join("\n\n")}
-
-${
-  changes.files.length > maxFiles
-    ? `\n...and ${changes.files.length - maxFiles} more files changed.`
-    : ""
-}`;
+### File Changes (Summarized)
+${fileSummaries}
+`;
 
     const finalAiInstructionForCommit = `
 Do *not* include any meta information or explanations — just the commit message
@@ -87,13 +68,12 @@ ${options.typeHint ? `Preferred type (hint): ${options.typeHint}` : ""}`;
 
     return `
 Git Changes: ${gitDataSection}
-File summary: ${fileSummaries}
 Base Prompt: ${basePrompt}
 Final Instruction: ${finalAiInstructionForCommit}
 `;
   }
 
-  const prompt = buildPrompt(changes, options, 500, 20, fileSummaries);
+  const prompt = buildPrompt(changes, options, fileSummaries);
 
   // refine
   if (options.refineFrom) {

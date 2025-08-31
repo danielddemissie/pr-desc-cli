@@ -43,6 +43,7 @@ export interface GenerateOptions {
   customTemplateContent?: string;
   maxFiles?: number;
   maxDiffLines?: number;
+  refineFrom?: string;
 }
 
 export interface SimpleGitFile {

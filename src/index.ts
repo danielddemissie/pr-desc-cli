@@ -222,6 +222,7 @@ program
                 model: options.model,
                 template: options.template,
                 customTemplateContent: customTemplateContent,
+                refineFrom: description,
               });
               spinner.succeed("PR description re-generated!");
             } else {
