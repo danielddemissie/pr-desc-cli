@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import type { GitChanges, CommitMessageOptions } from "./types.js";
 import { getAIModel } from "./models.js";
-import { formatCommitMessage } from "./utils.js";
+import { formatCommitMessage, ensureConventionalCommit } from "./utils.js";
 
 export async function generateConventionalCommitMessage(
   changes: GitChanges,
@@ -9,7 +9,7 @@ export async function generateConventionalCommitMessage(
 ): Promise<string> {
   const model = await getAIModel(options.provider, options.model);
   const maxFiles = options.maxFiles ?? 20;
-  const maxDiffLines = options.maxDiffLines ?? 400;
+  const maxDiffLines = options.maxDiffLines ?? 600;
 
   const fileSummaries = changes.files
     .slice(0, maxFiles)
@@ -94,12 +94,62 @@ Final Instruction: ${finalAiInstructionForCommit}
   }
 
   const prompt = buildPrompt(changes, options, 500, 20, fileSummaries);
-  const { text } = await generateText({
-    model,
-    prompt,
-    temperature: 0.3,
-    maxTokens: 60,
-  });
 
-  return formatCommitMessage(text);
+  // refine
+  if (options.refineFrom) {
+    const prev = formatCommitMessage(options.refineFrom);
+    const refinePrompt = `Previous commit suggestion: "${prev}"
+
+Based on the staged git diff below, improve or correct the suggestion so it strictly follows Conventional Commits and accurately reflects the changes. Return ONLY the corrected commit line (no explanation):
+
+<diff>
+${fileSummaries}
+</diff>
+
+Rules:
+- Use format: <type>(<optional scope>): <short imperative summary>
+- type must be one of: feat, fix, docs, style, refactor, perf, test, chore, build, ci
+- Summary must be <= 72 characters
+- No trailing period
+- Return only the first line (no body or footer)
+${options.typeHint ? `Preferred type (hint): ${options.typeHint}` : ""}
+`;
+
+    try {
+      const res = await generateText({
+        model,
+        prompt: refinePrompt,
+        temperature: 0.15,
+        maxTokens: 80,
+      });
+      const refinedRaw =
+        (res as any)?.text ??
+        (res as any)?.output?.[0]?.content ??
+        (res as any)?.choices?.[0]?.text ??
+        "";
+      const cleaned = formatCommitMessage(refinedRaw || prev);
+      return ensureConventionalCommit(cleaned, options.typeHint);
+    } catch (err) {
+      // just return the previous
+      return ensureConventionalCommit(prev, options.typeHint);
+    }
+  }
+
+  try {
+    const res = await generateText({
+      model,
+      prompt,
+      temperature: 0.3,
+      maxTokens: 80,
+    });
+    const raw =
+      (res as any)?.text ??
+      (res as any)?.output?.[0]?.content ??
+      (res as any)?.choices?.[0]?.text ??
+      "";
+    const cleaned = formatCommitMessage(raw);
+    return ensureConventionalCommit(cleaned, options.typeHint);
+  } catch (err) {
+    throw err;
+  }
 }
