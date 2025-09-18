@@ -1,12 +1,10 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
-import { config } from "dotenv";
 import { maskApiKey } from "./utils.js";
 
 const CONFIG_DIR = join(homedir(), ".pr-desc");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
-const ENV_FILE = join(CONFIG_DIR, ".env");
 
 export interface Config {
   defaultProvider?: string;
@@ -18,13 +16,6 @@ export interface Config {
 }
 
 export function loadConfig(unmask?: boolean): Config {
-  // global config
-  if (existsSync(ENV_FILE)) {
-    config({ path: ENV_FILE });
-  }
-
-  config();
-
   let userConfig: Config = {};
   if (existsSync(CONFIG_FILE)) {
     try {
@@ -55,11 +46,11 @@ export function saveConfig(config: Config): void {
 }
 
 export function getApiKey(provider: string): string | undefined {
-  const config = loadConfig();
+  const config = loadConfig(true);
 
   switch (provider) {
     case "groq":
-      return process.env.GROQ_API_KEY || config.apiKeys?.groq;
+      return config.apiKeys?.groq;
     default:
       return undefined;
   }
