@@ -66,3 +66,30 @@ export function ensureConventionalCommit(
 
   return `${hint}: ${summary}`;
 }
+
+export const mapTypeToLabel = (t: string) => {
+  switch ((t || "").toLowerCase()) {
+    case "feat":
+      return "Feature";
+    case "fix":
+      return "Bugfix";
+    case "chore":
+      return "Chore";
+    case "docs":
+      return "Docs";
+    case "refactor":
+      return "Refactor";
+    case "perf":
+      return "Performance";
+    case "test":
+      return "Tests";
+    case "style":
+      return "Style";
+    case "ci":
+      return "CI";
+    case "build":
+      return "Build";
+    default:
+      return t ? t.charAt(0).toUpperCase() + t.slice(1) : "Unknown";
+  }
+};

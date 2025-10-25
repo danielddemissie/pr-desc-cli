@@ -21,84 +21,174 @@ export async function getGitChanges(
     const currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
     // mode base
     let diffRangeArg = `${baseBranch}...HEAD`;
-    let log: any;
+    let log: any = await git.log({
+      from: baseBranch,
+      to: "HEAD",
+      maxCount: 10,
+    });
 
+    const files: FileChange[] = [];
     if (mode === "branch") {
-      log = await git.log({
-        from: baseBranch,
-        to: "HEAD",
-        maxCount: 10,
+      const diffSummary = await git.diffSummary([diffRangeArg]);
+      const numstatArgs = ["diff", diffRangeArg, "--numstat"];
+      const numstatOutput = await git.raw(numstatArgs);
+      const numstatMap: Record<
+        string,
+        { additions: number; deletions: number }
+      > = {};
+
+      numstatOutput.split("\n").forEach((line) => {
+        if (!line.trim()) return;
+
+        const [add, del, path] = line.split("\t");
+        numstatMap[path] = {
+          additions: add === "-" ? 0 : parseInt(add, 10),
+          deletions: del === "-" ? 0 : parseInt(del, 10),
+        };
       });
-    } else {
-      log = await git.log({
-        maxCount: 10,
-      });
+
+      const diffFiles = diffSummary.files.slice(0, maxFiles);
+      for (const file of diffFiles) {
+        const stats = numstatMap[file.file] || { additions: 0, deletions: 0 };
+        let patch: string | null = null;
+
+        try {
+          patch = await git.diff([diffRangeArg, "--", file.file]);
+        } catch {
+          patch = null;
+        }
+
+        files.push({
+          path: file.file,
+          status: getFileStatus(stats),
+          additions: stats.additions,
+          deletions: stats.deletions,
+          patch,
+        });
+      }
+
+      return {
+        baseBranch,
+        currentBranch,
+        files,
+        commits: (log?.all || []).map((commit: any) => ({
+          hash: commit.hash,
+          message: commit.message,
+          author: commit.author_name || "Unknown",
+          date: commit.date,
+        })),
+        stats: {
+          insertions: diffSummary.insertions,
+          deletions: diffSummary.deletions,
+          filesChanged: diffSummary.files.length,
+        },
+        mode,
+      };
     }
 
-    const diffSummary =
-      mode === "branch"
-        ? await git.diffSummary([diffRangeArg])
-        : await git.diffSummary(["--cached"]);
+    // mode === "staged" -> merge branch + staged
+    const branchSummary = await git.diffSummary([diffRangeArg]);
+    const stagedSummary = await git.diffSummary(["--cached"]);
 
-    const numstatArgs =
-      mode === "branch"
-        ? ["diff", diffRangeArg, "--numstat"]
-        : ["diff", "--cached", "--numstat"];
-    const numstatOutput = await git.raw(numstatArgs);
-    const numstatMap: Record<string, { additions: number; deletions: number }> =
+    const branchNumstat = await git.raw(["diff", diffRangeArg, "--numstat"]);
+    const stagedNumstat = await git.raw(["diff", "--cached", "--numstat"]);
+
+    const branchMap: Record<string, { additions: number; deletions: number }> =
       {};
-    numstatOutput.split("\n").forEach((line) => {
+    branchNumstat.split("\n").forEach((line) => {
       if (!line.trim()) return;
-
       const [add, del, path] = line.split("\t");
-      numstatMap[path] = {
+      branchMap[path] = {
         additions: add === "-" ? 0 : parseInt(add, 10),
         deletions: del === "-" ? 0 : parseInt(del, 10),
       };
     });
 
-    const diffFiles = diffSummary.files.slice(0, maxFiles);
-    const files: FileChange[] = [];
+    const stagedMap: Record<string, { additions: number; deletions: number }> =
+      {};
+    stagedNumstat.split("\n").forEach((line) => {
+      if (!line.trim()) return;
+      const [add, del, path] = line.split("\t");
+      stagedMap[path] = {
+        additions: add === "-" ? 0 : parseInt(add, 10),
+        deletions: del === "-" ? 0 : parseInt(del, 10),
+      };
+    });
 
-    for (const file of diffFiles) {
-      const stats = numstatMap[file.file] || { additions: 0, deletions: 0 };
+    const branchFiles = (branchSummary.files || []).map((f: any) => f.file);
+    const stagedFiles = (stagedSummary.files || []).map((f: any) => f.file);
+    const allFiles = Array.from(
+      new Set([...branchFiles, ...stagedFiles])
+    ).slice(0, maxFiles);
 
-      let patch: string | null = null;
+    for (const filePath of allFiles) {
+      const b = branchMap[filePath] || { additions: 0, deletions: 0 };
+      const s = stagedMap[filePath] || { additions: 0, deletions: 0 };
+      const combined = {
+        additions: (b.additions || 0) + (s.additions || 0),
+        deletions: (b.deletions || 0) + (s.deletions || 0),
+      };
+
+      let committedPatch: string | null = null;
+      let stagedPatch: string | null = null;
+
       try {
-        patch = await git.diff([
-          ...(mode === "branch" ? [diffRangeArg] : ["--cached"]),
-          "--",
-          file.file,
-        ]);
+        if (branchFiles.includes(filePath)) {
+          committedPatch = await git.diff([diffRangeArg, "--", filePath]);
+        }
       } catch {
-        patch = null;
+        committedPatch = null;
       }
 
+      try {
+        if (stagedFiles.includes(filePath)) {
+          stagedPatch = await git.diff(["--cached", "--", filePath]);
+        }
+      } catch {
+        stagedPatch = null;
+      }
+
+      const parts: string[] = [];
+      if (committedPatch) {
+        parts.push("--- COMMITTED PATCH (base...HEAD) ---\n" + committedPatch);
+      }
+      if (stagedPatch) {
+        parts.push("--- STAGED PATCH (index vs HEAD) ---\n" + stagedPatch);
+      }
+
+      const patch = parts.length ? parts.join("\n\n") : null;
+
       files.push({
-        path: file.file,
-        status: getFileStatus(stats),
-        additions: stats.additions,
-        deletions: stats.deletions,
+        path: filePath,
+        status: getFileStatus(combined),
+        additions: combined.additions,
+        deletions: combined.deletions,
         patch,
       });
     }
 
-    const commits: CommitInfo[] = (log?.all || []).map((commit: any) => ({
-      hash: commit.hash,
-      message: commit.message,
-      author: commit.author_name || "Unknown",
-      date: commit.date,
-    }));
+    const combinedInsertions =
+      (branchSummary.insertions || 0) + (stagedSummary.insertions || 0);
+    const combinedDeletions =
+      (branchSummary.deletions || 0) + (stagedSummary.deletions || 0);
+    const combinedFilesChanged = Array.from(
+      new Set([...branchFiles, ...stagedFiles])
+    ).length;
 
     return {
       baseBranch,
       currentBranch,
       files,
-      commits,
+      commits: (log?.all || []).map((commit: any) => ({
+        hash: commit.hash,
+        message: commit.message,
+        author: commit.author_name || "Unknown",
+        date: commit.date,
+      })),
       stats: {
-        insertions: diffSummary.insertions,
-        deletions: diffSummary.deletions,
-        filesChanged: diffSummary.files.length,
+        insertions: combinedInsertions,
+        deletions: combinedDeletions,
+        filesChanged: combinedFilesChanged,
       },
       mode,
     };
