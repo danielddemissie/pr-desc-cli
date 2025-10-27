@@ -31,6 +31,7 @@ import {
   CLIConfigOptions,
   CLICommitOptions,
 } from "./types.js";
+import { generateQuickSummary } from "./quick-summary.js";
 
 config();
 
@@ -144,9 +145,23 @@ program
         SUPPORTED_MODELS[options.provider as keyof typeof SUPPORTED_MODELS]
           .default;
 
+      let mode: "branch" | "staged" = "branch";
+      try {
+        const stagedNameOnly = await runGitCommand([
+          "diff",
+          "--cached",
+          "--name-only",
+        ]);
+        if (stagedNameOnly && stagedNameOnly.trim().length > 0) {
+          mode = "staged";
+          spinner.text = "Analyzing staged changes...";
+        }
+      } catch (e) {}
+
       const changes = await getGitChanges(
         options.base,
-        Number.parseInt(options.maxFiles || "20")
+        Number.parseInt(options.maxFiles || "20"),
+        mode
       );
 
       if (!changes.files.length) {
@@ -181,6 +196,12 @@ program
 
       spinner.succeed("PR description generated!");
 
+      let quickSummary = await generateQuickSummary(changes, {
+        provider: options.provider,
+        model: options.model,
+        template: options.template,
+        maxFiles: Number.parseInt(options.maxFiles || "20"),
+      });
       if (options.ghPr) {
         if (!(await isGhCliInstalled())) {
           spinner.fail(
@@ -193,6 +214,8 @@ program
         let regenerate = true;
 
         while (regenerate) {
+          console.log("\n" + chalk.blue("═".repeat(60)));
+          console.log("\n" + (quickSummary ? quickSummary : ""));
           console.log("\n" + chalk.blue("═".repeat(60)));
           console.log(chalk.bold.cyan("🚀 Generated PR Description Preview"));
           console.log(chalk.blue("═".repeat(60)));
@@ -224,7 +247,14 @@ program
                 customTemplateContent: customTemplateContent,
                 refineFrom: description,
               });
+
               spinner.succeed("PR description re-generated!");
+              quickSummary = await generateQuickSummary(changes, {
+                provider: options.provider,
+                model: options.model,
+                template: options.template,
+                maxFiles: Number.parseInt(options.maxFiles || "20"),
+              });
             } else {
               spinner.info("PR creation cancelled.");
               return;
@@ -406,6 +436,8 @@ program
           }
         }
       } else if (options.dryRun) {
+        console.log("\n" + chalk.blue("═".repeat(60)));
+        console.log("\n" + (quickSummary ? quickSummary : ""));
         console.log("\n" + chalk.blue("═".repeat(60)));
         console.log(chalk.bold.cyan("🚀 Generated PR Description (Dry Run)"));
         console.log(chalk.blue("═".repeat(60)));
